@@ -2,6 +2,35 @@ import Image from "next/image";
 import Link from "next/link";
 import { supabase } from "../../../lib/supabase";
 
+type SoftbalScore = {
+	student_id: number;
+	tactiek_veldpartij: number;
+	tactiek_slagpartij: number;
+	werpen_vangen: number;
+	slaan: number;
+};
+
+type VolleybalScore = {
+	student_id: number;
+	inzet: number;
+	techniek: number;
+	tactiek: number;
+};
+
+function getGrade(scores: number[]) {
+	const average = scores.reduce((total, score) => total + score, 0) / scores.length;
+
+	if (average < 2) {
+		return "O";
+	}
+
+	if (average < 3) {
+		return "V";
+	}
+
+	return "G";
+}
+
 export default async function KlasPage({
 	params,
 }: {
@@ -15,19 +44,41 @@ export default async function KlasPage({
 		.eq("klas", klas)
 		.order("achternaam");
 
-	const completedStudentIds = new Set<number>();
+	const softbalScoresByStudent = new Map<number, SoftbalScore>();
+	const volleybalScoresByStudent = new Map<number, VolleybalScore>();
 
 	if (students && students.length > 0) {
-		const { data: softbalScores } = await supabase
-			.from("softbal_scores")
-			.select("student_id")
-			.in(
-				"student_id",
-				students.map((student) => Number(student.id)),
-			);
+		const studentIds = students.map((student) => Number(student.id));
+		const [{ data: softbalScores }, { data: volleybalScores }] =
+			await Promise.all([
+				supabase
+					.from("softbal_scores")
+					.select(
+						"student_id, tactiek_veldpartij, tactiek_slagpartij, werpen_vangen, slaan",
+					)
+					.in("student_id", studentIds)
+					.order("created_at", { ascending: false }),
+				supabase
+					.from("volleybal_scores")
+					.select("student_id, inzet, techniek, tactiek")
+					.in("student_id", studentIds)
+					.order("created_at", { ascending: false }),
+			]);
 
 		softbalScores?.forEach((score) => {
-			completedStudentIds.add(Number(score.student_id));
+			const studentId = Number(score.student_id);
+
+			if (!softbalScoresByStudent.has(studentId)) {
+				softbalScoresByStudent.set(studentId, score as SoftbalScore);
+			}
+		});
+
+		volleybalScores?.forEach((score) => {
+			const studentId = Number(score.student_id);
+
+			if (!volleybalScoresByStudent.has(studentId)) {
+				volleybalScoresByStudent.set(studentId, score as VolleybalScore);
+			}
 		});
 	}
 
@@ -63,7 +114,12 @@ export default async function KlasPage({
 						aria-label={`Leerlingen uit klas ${klas}`}
 						className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3"
 					>
-						{students.map((student) => (
+						{students.map((student) => {
+							const studentId = Number(student.id);
+							const softbalScore = softbalScoresByStudent.get(studentId);
+							const volleybalScore = volleybalScoresByStudent.get(studentId);
+
+							return (
 							<Link
 								key={student.id}
 								href={`/leerlingen/${student.id}`}
@@ -90,13 +146,32 @@ export default async function KlasPage({
 									<span className="font-semibold text-slate-800">Stamnummer:</span>{" "}
 									{student.stamnummer}
 								</p>
+								<p className="mt-4 text-sm font-semibold text-[#362665]">
+									{Number(softbalScore !== undefined) + Number(volleybalScore !== undefined)}
+									/2 onderdelen beoordeeld
+								</p>
 								<p className="mt-4 text-sm font-semibold text-slate-600">
-									{completedStudentIds.has(Number(student.id))
-										? "✅ Softbal beoordeeld"
+									{softbalScore
+										? `✅ Softbal ${getGrade([
+												softbalScore.tactiek_veldpartij,
+												softbalScore.tactiek_slagpartij,
+												softbalScore.werpen_vangen,
+												softbalScore.slaan,
+											])}`
 										: "❌ Softbal niet beoordeeld"}
 								</p>
+								<p className="mt-2 text-sm font-semibold text-slate-600">
+									{volleybalScore
+										? `✅ Volleybal ${getGrade([
+												volleybalScore.inzet,
+												volleybalScore.techniek,
+												volleybalScore.tactiek,
+											])}`
+										: "❌ Volleybal niet beoordeeld"}
+								</p>
 							</Link>
-						))}
+							);
+						})}
 					</section>
 				) : (
 					<div className="rounded-2xl bg-white p-6 text-slate-600 shadow-lg shadow-[#362665]/10">
