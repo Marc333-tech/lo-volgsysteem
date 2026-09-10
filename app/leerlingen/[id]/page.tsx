@@ -22,6 +22,16 @@ export default async function LeerlingPage({
     );
   }
 
+  const { data: softbalScore } = await supabase
+    .from("softbal_scores")
+    .select(
+      "tactiek_veldpartij, tactiek_slagpartij, werpen_vangen, slaan",
+    )
+    .eq("student_id", Number(id))
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
   return (
     <main className="min-h-screen p-10 bg-slate-100">
       <div className="max-w-4xl mx-auto">
@@ -45,6 +55,31 @@ export default async function LeerlingPage({
             Softbal beoordelen
           </Link>
         </div>
+
+        <section className="mt-6 rounded-xl bg-white p-6 shadow">
+          <h2 className="mb-4 text-2xl font-bold">Softbal</h2>
+
+          {softbalScore ? (
+            <div className="space-y-2">
+              <p>
+                <strong>Tactiek veldpartij:</strong>{" "}
+                {softbalScore.tactiek_veldpartij}
+              </p>
+              <p>
+                <strong>Tactiek slagpartij:</strong>{" "}
+                {softbalScore.tactiek_slagpartij}
+              </p>
+              <p>
+                <strong>Werpen en vangen:</strong> {softbalScore.werpen_vangen}
+              </p>
+              <p>
+                <strong>Slaan:</strong> {softbalScore.slaan}
+              </p>
+            </div>
+          ) : (
+            <p>Nog geen softbalbeoordeling beschikbaar</p>
+          )}
+        </section>
       </div>
     </main>
   );
