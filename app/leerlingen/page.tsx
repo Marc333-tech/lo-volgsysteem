@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { supabase } from "../../lib/supabase";
 
 export default async function LeerlingenPage() {
@@ -17,7 +18,9 @@ export default async function LeerlingenPage() {
           <ul className="space-y-2">
             {leerlingen?.map((leerling) => (
               <li key={leerling.id}>
-                {leerling.roepnaam} {leerling.achternaam}
+                <Link href={`/leerlingen/${leerling.id}`}>
+                  {leerling.roepnaam} {leerling.achternaam}
+                </Link>
               </li>
             ))}
           </ul>
