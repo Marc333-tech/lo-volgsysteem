@@ -35,6 +35,13 @@ export default async function LeerlingPage({
   return (
     <main className="min-h-screen p-10 bg-slate-100">
       <div className="max-w-4xl mx-auto">
+        <Link
+          href={`/klassen/${encodeURIComponent(leerling.klas)}`}
+          className="mb-6 inline-block text-slate-700 hover:text-slate-900"
+        >
+          ← Terug naar klas
+        </Link>
+
         <h1 className="text-4xl font-bold mb-6">
           {leerling.roepnaam} {leerling.achternaam}
         </h1>
@@ -55,6 +62,15 @@ export default async function LeerlingPage({
             Softbal beoordelen
           </Link>
         </div>
+
+        <section className="mt-6 rounded-xl bg-white p-6 shadow">
+          <h2 className="mb-4 text-2xl font-bold">Sportonderdelen</h2>
+          <p>
+            {softbalScore
+              ? "🥎 Softbal ✅ Beoordeeld"
+              : "🥎 Softbal ❌ Niet beoordeeld"}
+          </p>
+        </section>
 
         <section className="mt-6 rounded-xl bg-white p-6 shadow">
           <h2 className="mb-4 text-2xl font-bold">Softbal</h2>

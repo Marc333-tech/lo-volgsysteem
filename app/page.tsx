@@ -3,13 +3,6 @@ import Image from "next/image";
 import Link from "next/link";
 
 export default async function Home() {
-  const { count: leerlingCount } = await supabase
-    .from("students")
-    .select("*", {
-      count: "exact",
-      head: true,
-    });
-
   const { count: klasCount } = await supabase
     .from("classes")
     .select("*", {
@@ -47,7 +40,7 @@ export default async function Home() {
 
         <section
           aria-label="Overzicht"
-          className="grid gap-5 md:grid-cols-3"
+          className="grid gap-5 md:grid-cols-2"
         >
           <Link
             href="/klassen"
@@ -64,23 +57,6 @@ export default async function Home() {
             <h2 className="text-xl font-bold text-[#362665]">Klassen</h2>
             <p className="mt-3 text-5xl font-bold text-slate-900">{klasCount}</p>
             <p className="mt-2 text-sm text-slate-500">Bekijk alle klassen</p>
-          </Link>
-
-          <Link
-            href="/leerlingen"
-            className="group rounded-2xl bg-white p-6 shadow-lg shadow-[#362665]/10 transition-all duration-200 hover:-translate-y-1 hover:shadow-xl hover:shadow-[#362665]/20 focus:outline-none focus:ring-4 focus:ring-[#EF8A00]/40"
-          >
-            <div className="mb-8 flex items-start justify-between">
-              <span className="flex h-14 w-14 items-center justify-center rounded-xl bg-[#EF8A00]/15 text-3xl" aria-hidden="true">
-                👨‍🎓
-              </span>
-              <span className="text-2xl text-[#362665] transition-transform duration-200 group-hover:translate-x-1" aria-hidden="true">
-                →
-              </span>
-            </div>
-            <h2 className="text-xl font-bold text-[#362665]">Leerlingen</h2>
-            <p className="mt-3 text-5xl font-bold text-slate-900">{leerlingCount}</p>
-            <p className="mt-2 text-sm text-slate-500">Bekijk alle leerlingen</p>
           </Link>
 
           <Link
