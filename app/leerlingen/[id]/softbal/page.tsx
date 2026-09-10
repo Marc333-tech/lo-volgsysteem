@@ -19,6 +19,13 @@ type Leerling = {
 	klas: string;
 };
 
+type SoftbalScore = {
+	tactiek_veldpartij: number;
+	tactiek_slagpartij: number;
+	werpen_vangen: number;
+	slaan: number;
+};
+
 export default function SoftbalPage({
 	params,
 }: {
@@ -45,7 +52,7 @@ export default function SoftbalPage({
 		setSaveMessage(null);
 
 		const { error } = await supabase.from("softbal_scores").insert({
-			student_id: id,
+			student_id: Number(id),
 			tactiek_veldpartij: scores["Tactiek veldpartij"],
 			tactiek_slagpartij: scores["Tactiek slagpartij"],
 			werpen_vangen: scores["Werpen en vangen"],
@@ -64,14 +71,37 @@ export default function SoftbalPage({
 		let isMounted = true;
 
 		async function loadLeerling() {
-			const { data } = await supabase
-				.from("students")
-				.select("roepnaam, achternaam, klas")
-				.eq("id", id)
-				.single();
+			const [{ data: leerlingData }, { data: scoreData }] = await Promise.all([
+				supabase
+					.from("students")
+					.select("roepnaam, achternaam, klas")
+					.eq("id", id)
+					.single(),
+				supabase
+					.from("softbal_scores")
+					.select(
+						"tactiek_veldpartij, tactiek_slagpartij, werpen_vangen, slaan",
+					)
+					.eq("student_id", Number(id))
+					.order("created_at", { ascending: false })
+					.limit(1)
+					.maybeSingle(),
+			]);
 
 			if (isMounted) {
-				setLeerling(data);
+				setLeerling(leerlingData);
+
+				if (scoreData) {
+					const savedScores = scoreData as SoftbalScore;
+
+					setScores({
+						"Tactiek veldpartij": savedScores.tactiek_veldpartij,
+						"Tactiek slagpartij": savedScores.tactiek_slagpartij,
+						"Werpen en vangen": savedScores.werpen_vangen,
+						Slaan: savedScores.slaan,
+					});
+				}
+
 				setIsLoading(false);
 			}
 		}
