@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { supabase } from "../../../lib/supabase";
 
 export default async function LeerlingPage({
@@ -36,6 +37,13 @@ export default async function LeerlingPage({
           <p>
             <strong>Klas:</strong> {leerling.klas}
           </p>
+
+          <Link
+            href={`/leerlingen/${id}/softbal`}
+            className="inline-block mt-6 rounded-lg bg-slate-800 px-4 py-2 text-white hover:bg-slate-700"
+          >
+            Softbal beoordelen
+          </Link>
         </div>
       </div>
     </main>
