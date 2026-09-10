@@ -1,34 +1,31 @@
-"use client";
-
 import Image from "next/image";
-import { FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
-import { supabase } from "../../lib/supabase";
+import { redirect } from "next/navigation";
+import { createSupabaseServerClient } from "../../lib/supabase/server";
 
-export default function LoginPage() {
-	const router = useRouter();
-	const [email, setEmail] = useState("");
-	const [password, setPassword] = useState("");
-	const [errorMessage, setErrorMessage] = useState<string | null>(null);
-	const [isLoggingIn, setIsLoggingIn] = useState(false);
+export default async function LoginPage({
+	searchParams,
+}: {
+	searchParams: Promise<{ next?: string; error?: string }>;
+}) {
+	const { next, error } = await searchParams;
+	const redirectPath = next?.startsWith("/") ? next : "/";
 
-	async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-		event.preventDefault();
-		setIsLoggingIn(true);
-		setErrorMessage(null);
+	async function signIn(formData: FormData) {
+		"use server";
 
+		const email = String(formData.get("email") ?? "");
+		const password = String(formData.get("password") ?? "");
+		const supabase = await createSupabaseServerClient();
 		const { error } = await supabase.auth.signInWithPassword({
 			email,
 			password,
 		});
 
 		if (error) {
-			setErrorMessage("Inloggen mislukt. Controleer je e-mailadres en wachtwoord.");
-			setIsLoggingIn(false);
-			return;
+			redirect("/login?error=invalid");
 		}
 
-		router.replace("/");
+		redirect(redirectPath);
 	}
 
 	return (
@@ -52,7 +49,7 @@ export default function LoginPage() {
 					<div className="mx-auto mt-5 h-1 w-20 rounded-full bg-[#EF8A00]" />
 				</div>
 
-				<form className="space-y-5" onSubmit={handleSubmit}>
+				<form className="space-y-5" action={signIn}>
 					<div>
 						<label
 							htmlFor="email"
@@ -66,8 +63,6 @@ export default function LoginPage() {
 							type="email"
 							autoComplete="email"
 							required
-							value={email}
-							onChange={(event) => setEmail(event.target.value)}
 							className="w-full rounded-lg border border-slate-300 px-4 py-3 text-slate-900 outline-none transition focus:border-[#362665] focus:ring-4 focus:ring-[#EF8A00]/20"
 						/>
 					</div>
@@ -85,24 +80,21 @@ export default function LoginPage() {
 							type="password"
 							autoComplete="current-password"
 							required
-							value={password}
-							onChange={(event) => setPassword(event.target.value)}
 							className="w-full rounded-lg border border-slate-300 px-4 py-3 text-slate-900 outline-none transition focus:border-[#362665] focus:ring-4 focus:ring-[#EF8A00]/20"
 						/>
 					</div>
 
-					{errorMessage && (
+					{error === "invalid" && (
 						<p className="text-sm text-red-600" role="alert">
-							{errorMessage}
+							Inloggen mislukt. Controleer je e-mailadres en wachtwoord.
 						</p>
 					)}
 
 					<button
 						type="submit"
-						disabled={isLoggingIn}
-						className="w-full rounded-lg bg-[#362665] px-6 py-3 font-semibold text-white transition-colors hover:bg-[#2b1e51] focus:outline-none focus:ring-4 focus:ring-[#EF8A00]/40 disabled:cursor-not-allowed disabled:opacity-60"
+						className="w-full rounded-lg bg-[#362665] px-6 py-3 font-semibold text-white transition-colors hover:bg-[#2b1e51] focus:outline-none focus:ring-4 focus:ring-[#EF8A00]/40"
 					>
-						{isLoggingIn ? "Inloggen..." : "Inloggen"}
+						Inloggen
 					</button>
 				</form>
 			</div>
