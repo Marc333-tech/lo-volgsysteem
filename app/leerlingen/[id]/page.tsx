@@ -17,6 +17,10 @@ function getGrade(average: number) {
   return "G";
 }
 
+function gradeToValue(grade: string) {
+  return grade === "G" ? 3 : grade === "V" ? 2 : 1;
+}
+
 const loOnderdelen = [
   {
     title: "LO1 Spel",
@@ -117,6 +121,14 @@ export default async function LeerlingPage({
   const volleybalAverage = volleybalValues
     ? calculateAverage(volleybalValues)
     : null;
+  const lo1Grades = [
+    softbalAverage !== null ? gradeToValue(getGrade(softbalAverage)) : null,
+    volleybalAverage !== null ? gradeToValue(getGrade(volleybalAverage)) : null,
+  ].filter((grade): grade is number => grade !== null);
+  const lo1Average = lo1Grades.length
+    ? calculateAverage(lo1Grades)
+    : null;
+  const lo1Grade = lo1Average === null ? null : getGrade(lo1Average);
 
   return (
     <main className="min-h-screen p-10 bg-slate-100">
@@ -160,7 +172,14 @@ export default async function LeerlingPage({
           <h2 className="text-2xl font-bold text-[#362665]">LO curriculum</h2>
           {loOnderdelen.map((groep) => (
             <section key={groep.title} className="rounded-2xl bg-white p-6 shadow-lg shadow-[#362665]/10">
-              <h3 className="mb-4 text-xl font-bold text-[#362665]">{groep.title}</h3>
+              <h3 className="mb-4 text-xl font-bold text-[#362665]">
+                {groep.title}
+                {groep.title === "LO1 Spel" && (
+                  <span className="ml-2">
+                    : {lo1Grade ?? "Nog niet beoordeeld"}
+                  </span>
+                )}
+              </h3>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {groep.onderdelen.map((onderdeel) => {
                   const isSoftbal = onderdeel.slug === "softbal";
