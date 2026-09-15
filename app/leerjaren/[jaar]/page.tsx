@@ -11,6 +11,7 @@ const klassenPerLeerjaar: Record<string, Klas[]> = {
   "2": [
     { name: "B2B", href: "/klassen/b2b" },
     { name: "B2D", href: "/klassen/b2d" },
+    { name: "B2G", href: "/klassen/b2g" },
   ],
   "3": [
     { name: "H3A", href: "/klassen/h3a" },
