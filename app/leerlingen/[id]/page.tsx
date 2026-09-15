@@ -21,6 +21,35 @@ function gradeToValue(grade: string) {
   return grade === "G" ? 3 : grade === "V" ? 2 : 1;
 }
 
+function hasResult(value: unknown) {
+  return value !== null && value !== undefined && value !== "";
+}
+
+function GradeBadge({ grade }: { grade: string | null }) {
+  const badge =
+    grade === "G"
+      ? "🟢 G Goed"
+      : grade === "V"
+        ? "🟡 V Voldoende"
+        : grade === "O"
+          ? "🔴 O Onvoldoende"
+          : "⚪ Nog niet beoordeeld";
+  const className =
+    grade === "G"
+      ? "bg-green-100 text-green-800"
+      : grade === "V"
+        ? "bg-yellow-100 text-yellow-800"
+        : grade === "O"
+          ? "bg-red-100 text-red-800"
+          : "bg-slate-100 text-slate-600";
+
+  return (
+    <span className={`inline-flex rounded-full px-3 py-1 text-sm font-semibold ${className}`}>
+      {badge}
+    </span>
+  );
+}
+
 const loOnderdelen = [
   {
     title: "LO1 Spel",
@@ -149,6 +178,28 @@ export default async function LeerlingPage({
     ? calculateAverage(lo5Grades)
     : null;
   const lo5Grade = lo5Average === null ? null : getGrade(lo5Average);
+  const loProgress = {
+    "LO1 Spel": {
+      assessed: Number(Boolean(softbalScore)) + Number(Boolean(volleybalScore)),
+      total: 4,
+    },
+    "LO2 Turnen": { assessed: 0, total: 1 },
+    "LO3 Atletiek": { assessed: 0, total: 5 },
+    "LO4 Klimmen": { assessed: 0, total: 2 },
+    "LO5 Conditie": {
+      assessed:
+        Number(hasResult(conditieScore?.rsg_run)) +
+        Number(hasResult(conditieScore?.shuttle_run)),
+      total: 2,
+    },
+  };
+  const loResultRows = [
+    { name: "LO1 Spel", grade: lo1Grade, progress: loProgress["LO1 Spel"] },
+    { name: "LO2 Turnen", grade: null, progress: loProgress["LO2 Turnen"] },
+    { name: "LO3 Atletiek", grade: null, progress: loProgress["LO3 Atletiek"] },
+    { name: "LO4 Klimmen", grade: null, progress: loProgress["LO4 Klimmen"] },
+    { name: "LO5 Conditie", grade: lo5Grade, progress: loProgress["LO5 Conditie"] },
+  ];
 
   return (
     <main className="min-h-screen p-10 bg-slate-100">
@@ -174,6 +225,26 @@ export default async function LeerlingPage({
           </p>
         </div>
 
+        <section className="mt-6 rounded-xl bg-white p-6 shadow">
+          <h2 className="mb-4 text-2xl font-bold text-[#362665]">LO Resultaten</h2>
+          <div className="divide-y divide-slate-200">
+            {loResultRows.map(({ name, grade, progress }) => (
+              <div
+                key={name}
+                className="flex items-center justify-between py-3 first:pt-0 last:pb-0"
+              >
+                <span className="font-semibold text-slate-800">{name}</span>
+                <span className="flex items-center gap-3">
+                  <GradeBadge grade={grade} />
+                  <span className="text-sm font-semibold text-slate-500">
+                    {progress.assessed}/{progress.total} onderdelen
+                  </span>
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
+
         <section className="mt-6 space-y-6">
           <h2 className="text-2xl font-bold text-[#362665]">LO curriculum</h2>
           {loOnderdelen.map((groep) => (
@@ -181,15 +252,19 @@ export default async function LeerlingPage({
               <h3 className="mb-4 text-xl font-bold text-[#362665]">
                 {groep.title}
                 {groep.title === "LO1 Spel" && (
-                  <span className="ml-2">
-                    : {lo1Grade ?? "Nog niet beoordeeld"}
+                  <span className="ml-2 align-middle">
+                    <GradeBadge grade={lo1Grade} />
                   </span>
                 )}
                 {groep.title === "LO5 Conditie" && (
-                  <span className="ml-2">
-                    : {lo5Grade ?? "Nog niet beoordeeld"}
+                  <span className="ml-2 align-middle">
+                    <GradeBadge grade={lo5Grade} />
                   </span>
                 )}
+                <span className="ml-2 text-sm font-semibold text-slate-500">
+                  {loProgress[groep.title as keyof typeof loProgress].assessed}/
+                  {loProgress[groep.title as keyof typeof loProgress].total} onderdelen
+                </span>
               </h3>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {groep.onderdelen.map((onderdeel) => {
@@ -210,9 +285,6 @@ export default async function LeerlingPage({
                       : isConditie
                         ? lo5Average
                       : null;
-                  const status = score
-                    ? `✅ Beoordeeld · ${getGrade(average!)}`
-                    : "❌ Nog niet beoordeeld";
                   const content = (
                     <>
                       <div className="flex items-start justify-between">
@@ -224,7 +296,11 @@ export default async function LeerlingPage({
                         )}
                       </div>
                       <h4 className="mt-5 text-lg font-bold text-[#362665]">{onderdeel.name}</h4>
-                      <p className="mt-2 text-sm font-semibold text-slate-600">{status}</p>
+                      <div className="mt-2">
+                        <GradeBadge
+                          grade={score ? getGrade(average!) : null}
+                        />
+                      </div>
                     </>
                   );
 
@@ -251,62 +327,6 @@ export default async function LeerlingPage({
           ))}
         </section>
 
-        <section className="mt-6 rounded-xl bg-white p-6 shadow">
-          <h2 className="mb-4 text-2xl font-bold">Softbal</h2>
-
-          {softbalScore ? (
-            <div className="space-y-2">
-              <p>
-                <strong>Tactiek veldpartij:</strong>{" "}
-                {softbalScore.tactiek_veldpartij}
-              </p>
-              <p>
-                <strong>Tactiek slagpartij:</strong>{" "}
-                {softbalScore.tactiek_slagpartij}
-              </p>
-              <p>
-                <strong>Werpen en vangen:</strong> {softbalScore.werpen_vangen}
-              </p>
-              <p>
-                <strong>Slaan:</strong> {softbalScore.slaan}
-              </p>
-              <p>
-                <strong>Gemiddelde:</strong> {softbalAverage?.toFixed(2)}
-              </p>
-              <p>
-                <strong>Cijfer:</strong> {getGrade(softbalAverage!)}
-              </p>
-            </div>
-          ) : (
-            <p>Nog geen softbalbeoordeling beschikbaar</p>
-          )}
-        </section>
-
-        <section className="mt-6 rounded-xl bg-white p-6 shadow">
-          <h2 className="mb-4 text-2xl font-bold">Volleybal</h2>
-
-          {volleybalScore ? (
-            <div className="space-y-2">
-              <p>
-                <strong>Inzet:</strong> {volleybalScore.inzet}
-              </p>
-              <p>
-                <strong>Techniek:</strong> {volleybalScore.techniek}
-              </p>
-              <p>
-                <strong>Tactiek:</strong> {volleybalScore.tactiek}
-              </p>
-              <p>
-                <strong>Gemiddelde:</strong> {volleybalAverage?.toFixed(2)}
-              </p>
-              <p>
-                <strong>Cijfer:</strong> {getGrade(volleybalAverage!)}
-              </p>
-            </div>
-          ) : (
-            <p>Nog geen volleybalbeoordeling beschikbaar</p>
-          )}
-        </section>
       </div>
     </main>
   );
