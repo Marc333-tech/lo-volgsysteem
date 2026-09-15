@@ -1,13 +1,17 @@
 import Image from "next/image";
 import Link from "next/link";
-import { supabase } from "../../lib/supabase";
+import { createSupabaseServerClient } from "../../lib/supabase/server";
 
 type Student = {
 	klas: string | null;
 };
 
 export default async function KlassenPage() {
-	const { data: students } = await supabase.from("students").select("klas");
+	const supabase = await createSupabaseServerClient();
+	const { data: students } = await supabase
+		.from("students")
+		.select("klas")
+		.not("klas", "is", null);
 
 	const studentCounts = new Map<string, number>();
 

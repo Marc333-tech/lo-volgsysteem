@@ -1,21 +1,25 @@
-import { supabase } from "../lib/supabase";
 import Image from "next/image";
 import Link from "next/link";
+import { createSupabaseServerClient } from "../lib/supabase/server";
+import { sporten } from "../lib/sports";
+
+type Student = {
+  klas: string | null;
+};
 
 export default async function Home() {
-  const { count: klasCount } = await supabase
-    .from("classes")
-    .select("*", {
-      count: "exact",
-      head: true,
-    });
+  const supabase = await createSupabaseServerClient();
+  const { data: students } = await supabase
+    .from("students")
+    .select("klas")
+    .not("klas", "is", null);
 
-  const { count: sportCount } = await supabase
-    .from("sports")
-    .select("*", {
-      count: "exact",
-      head: true,
-    });
+  const klasCount = new Set(
+    (students as Student[] | null)
+      ?.map((student) => student.klas)
+      .filter((klas): klas is string => Boolean(klas)),
+  ).size;
+  const sportCount = sporten.length;
 
   return (
     <main className="min-h-screen bg-[#f5f3f8] px-6 py-10 sm:px-10 sm:py-14">

@@ -1,13 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-
-const sporten = [
-	{ naam: "Softbal", icoon: "🥎", slug: "softbal" },
-	{ naam: "Volleybal", icoon: "🏐", slug: "volleybal" },
-	{ naam: "Basketbal", icoon: "🏀", slug: "basketbal" },
-	{ naam: "Handbal", icoon: "🤾", slug: "handbal" },
-	{ naam: "Hockey", icoon: "🏑", slug: "hockey" },
-];
+import { sporten } from "../../lib/sports";
 
 export default function SportenPage() {
 	return (
