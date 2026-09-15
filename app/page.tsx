@@ -1,26 +1,35 @@
 import Image from "next/image";
 import Link from "next/link";
-import { createSupabaseServerClient } from "../lib/supabase/server";
-import { sporten } from "../lib/sports";
 
-type Student = {
-  klas: string | null;
+const leerjaren = [1, 2, 3, 4, 5, 6];
+
+function LeerjaarCard({ leerjaar }: { leerjaar: number }) {
+  return (
+    <Link
+      href={`/leerjaren/${leerjaar}`}
+      className="group rounded-2xl bg-white p-6 shadow-lg shadow-[#362665]/10 transition-all duration-200 hover:-translate-y-1 hover:shadow-xl hover:shadow-[#362665]/20 focus:outline-none focus:ring-4 focus:ring-[#EF8A00]/40"
+    >
+      <div className="mb-8 flex items-start justify-between">
+        <span
+          className="flex h-14 w-14 items-center justify-center rounded-xl bg-[#362665]/10 text-3xl"
+          aria-hidden="true"
+        >
+          📚
+        </span>
+        <span
+          className="text-2xl text-[#362665] transition-transform duration-200 group-hover:translate-x-1"
+          aria-hidden="true"
+        >
+          →
+        </span>
+      </div>
+      <h2 className="text-xl font-bold text-[#362665]">Leerjaar {leerjaar}</h2>
+      <p className="mt-3 text-sm text-slate-500">Bekijk leerjaar {leerjaar}</p>
+    </Link>
+  );
 };
 
-export default async function Home() {
-  const supabase = await createSupabaseServerClient();
-  const { data: students } = await supabase
-    .from("students")
-    .select("klas")
-    .not("klas", "is", null);
-
-  const klasCount = new Set(
-    (students as Student[] | null)
-      ?.map((student) => student.klas)
-      .filter((klas): klas is string => Boolean(klas)),
-  ).size;
-  const sportCount = sporten.length;
-
+export default function Home() {
   return (
     <main className="min-h-screen bg-[#f5f3f8] px-6 py-10 sm:px-10 sm:py-14">
       <div className="mx-auto max-w-6xl">
@@ -42,43 +51,10 @@ export default async function Home() {
           <div className="mt-5 h-1 w-20 rounded-full bg-[#EF8A00]" />
         </header>
 
-        <section
-          aria-label="Overzicht"
-          className="grid gap-5 md:grid-cols-2"
-        >
-          <Link
-            href="/klassen"
-            className="group rounded-2xl bg-white p-6 shadow-lg shadow-[#362665]/10 transition-all duration-200 hover:-translate-y-1 hover:shadow-xl hover:shadow-[#362665]/20 focus:outline-none focus:ring-4 focus:ring-[#EF8A00]/40"
-          >
-            <div className="mb-8 flex items-start justify-between">
-              <span className="flex h-14 w-14 items-center justify-center rounded-xl bg-[#362665]/10 text-3xl" aria-hidden="true">
-                📚
-              </span>
-              <span className="text-2xl text-[#362665] transition-transform duration-200 group-hover:translate-x-1" aria-hidden="true">
-                →
-              </span>
-            </div>
-            <h2 className="text-xl font-bold text-[#362665]">Klassen</h2>
-            <p className="mt-3 text-5xl font-bold text-slate-900">{klasCount}</p>
-            <p className="mt-2 text-sm text-slate-500">Bekijk alle klassen</p>
-          </Link>
-
-          <Link
-            href="/sporten"
-            className="group rounded-2xl bg-white p-6 shadow-lg shadow-[#362665]/10 transition-all duration-200 hover:-translate-y-1 hover:shadow-xl hover:shadow-[#362665]/20 focus:outline-none focus:ring-4 focus:ring-[#EF8A00]/40"
-          >
-            <div className="mb-8 flex items-start justify-between">
-              <span className="flex h-14 w-14 items-center justify-center rounded-xl bg-[#362665]/10 text-3xl" aria-hidden="true">
-                🥎
-              </span>
-              <span className="text-2xl text-[#362665] transition-transform duration-200 group-hover:translate-x-1" aria-hidden="true">
-                →
-              </span>
-            </div>
-            <h2 className="text-xl font-bold text-[#362665]">Sporten</h2>
-            <p className="mt-3 text-5xl font-bold text-slate-900">{sportCount}</p>
-            <p className="mt-2 text-sm text-slate-500">Bekijk alle sporten</p>
-          </Link>
+        <section aria-label="Leerjaren" className="grid gap-5 md:grid-cols-2">
+          {leerjaren.map((leerjaar) => (
+            <LeerjaarCard key={leerjaar} leerjaar={leerjaar} />
+          ))}
         </section>
       </div>
     </main>
