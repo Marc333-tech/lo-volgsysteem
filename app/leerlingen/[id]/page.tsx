@@ -62,7 +62,7 @@ const loOnderdelen = [
   },
   {
     title: "LO2 Turnen",
-    onderdelen: [{ name: "Acrogym", icon: "🤸" }],
+    onderdelen: [{ name: "Acrogym", icon: "🤸", slug: "acrogym" }],
   },
   {
     title: "LO3 Atletiek",
@@ -129,6 +129,14 @@ export default async function LeerlingPage({
     .limit(1)
     .maybeSingle();
 
+  const { data: acrogymScore } = await supabase
+    .from("acrogym_scores")
+    .select("inzet, techniek, ontwerpen")
+    .eq("student_id", Number(id))
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
   const { data: conditieScore } = await supabase
     .from("conditie_scores")
     .select("inzet, technisch, tactisch, limieten, rsg_run, shuttle_run")
@@ -166,6 +174,17 @@ export default async function LeerlingPage({
     ? calculateAverage(lo1Grades)
     : null;
   const lo1Grade = lo1Average === null ? null : getGrade(lo1Average);
+  const lo2Grades = acrogymScore
+    ? [
+        acrogymScore.inzet,
+        acrogymScore.techniek,
+        acrogymScore.ontwerpen,
+      ].map((score) => gradeToValue(getGrade(Number(score))))
+    : [];
+  const lo2Average = lo2Grades.length
+    ? calculateAverage(lo2Grades)
+    : null;
+  const lo2Grade = lo2Average === null ? null : getGrade(lo2Average);
   const lo5Grades = conditieScore
     ? [
         conditieScore.inzet,
@@ -183,7 +202,7 @@ export default async function LeerlingPage({
       assessed: Number(Boolean(softbalScore)) + Number(Boolean(volleybalScore)),
       total: 4,
     },
-    "LO2 Turnen": { assessed: 0, total: 1 },
+    "LO2 Turnen": { assessed: Number(Boolean(acrogymScore)), total: 1 },
     "LO3 Atletiek": { assessed: 0, total: 5 },
     "LO4 Klimmen": { assessed: 0, total: 2 },
     "LO5 Conditie": {
@@ -195,7 +214,7 @@ export default async function LeerlingPage({
   };
   const loResultRows = [
     { name: "LO1 Spel", grade: lo1Grade, progress: loProgress["LO1 Spel"] },
-    { name: "LO2 Turnen", grade: null, progress: loProgress["LO2 Turnen"] },
+    { name: "LO2 Turnen", grade: lo2Grade, progress: loProgress["LO2 Turnen"] },
     { name: "LO3 Atletiek", grade: null, progress: loProgress["LO3 Atletiek"] },
     { name: "LO4 Klimmen", grade: null, progress: loProgress["LO4 Klimmen"] },
     { name: "LO5 Conditie", grade: lo5Grade, progress: loProgress["LO5 Conditie"] },
@@ -256,6 +275,11 @@ export default async function LeerlingPage({
                     <GradeBadge grade={lo1Grade} />
                   </span>
                 )}
+                {groep.title === "LO2 Turnen" && (
+                  <span className="ml-2 align-middle">
+                    <GradeBadge grade={lo2Grade} />
+                  </span>
+                )}
                 {groep.title === "LO5 Conditie" && (
                   <span className="ml-2 align-middle">
                     <GradeBadge grade={lo5Grade} />
@@ -270,11 +294,14 @@ export default async function LeerlingPage({
                 {groep.onderdelen.map((onderdeel) => {
                   const isSoftbal = onderdeel.slug === "softbal";
                   const isVolleybal = onderdeel.slug === "volleybal";
+                  const isAcrogym = onderdeel.slug === "acrogym";
                   const isConditie = groep.title === "LO5 Conditie";
                   const score = isSoftbal
                     ? softbalScore
                     : isVolleybal
                       ? volleybalScore
+                      : isAcrogym
+                        ? acrogymScore
                       : isConditie
                         ? conditieScore
                       : null;
@@ -282,6 +309,8 @@ export default async function LeerlingPage({
                     ? softbalAverage
                     : isVolleybal
                       ? volleybalAverage
+                      : isAcrogym
+                        ? lo2Average
                       : isConditie
                         ? lo5Average
                       : null;
@@ -291,7 +320,7 @@ export default async function LeerlingPage({
                         <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#362665]/10 text-2xl" aria-hidden="true">
                           {onderdeel.icon}
                         </span>
-                        {(isSoftbal || isVolleybal || isConditie) && (
+                        {(isSoftbal || isVolleybal || isAcrogym || isConditie) && (
                           <span className="text-xl text-[#362665]" aria-hidden="true">→</span>
                         )}
                       </div>
@@ -304,7 +333,7 @@ export default async function LeerlingPage({
                     </>
                   );
 
-                  return isSoftbal || isVolleybal || isConditie ? (
+                  return isSoftbal || isVolleybal || isAcrogym || isConditie ? (
                     <Link
                       key={onderdeel.name}
                       href={
