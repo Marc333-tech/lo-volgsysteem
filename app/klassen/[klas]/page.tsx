@@ -17,6 +17,18 @@ type VolleybalScore = {
 	tactiek: number;
 };
 
+const leerjaarPerKlas: Record<string, number> = {
+	B1B: 1,
+	B2B: 2,
+	B2D: 2,
+	H3A: 3,
+	H3B: 3,
+	BZ4A: 4,
+	H4A: 4,
+	H4B: 4,
+	H5A: 5,
+};
+
 function getGrade(scores: number[]) {
 	const average = scores.reduce((total, score) => total + score, 0) / scores.length;
 
@@ -37,6 +49,7 @@ export default async function KlasPage({
 	params: Promise<{ klas: string }>;
 }) {
 	const { klas } = await params;
+	const leerjaar = leerjaarPerKlas[klas.toUpperCase()];
 
 	const { data: students } = await supabase
 		.from("students")
@@ -95,10 +108,10 @@ export default async function KlasPage({
 						priority
 					/>
 					<Link
-						href="/klassen"
+						href={leerjaar ? `/leerjaren/${leerjaar}` : "/klassen"}
 						className="mb-8 inline-block rounded-lg font-semibold text-[#362665] transition-colors hover:text-[#EF8A00] focus:outline-none focus:ring-4 focus:ring-[#EF8A00]/40"
 					>
-						← Terug naar klassen
+						← Terug naar leerjaar
 					</Link>
 					<p className="mb-3 text-sm font-bold uppercase tracking-[0.18em] text-[#EF8A00]">
 						RSG Ter Apel
