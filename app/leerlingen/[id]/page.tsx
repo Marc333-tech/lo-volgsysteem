@@ -56,7 +56,7 @@ const loOnderdelen = [
     title: "LO5 Conditie",
     onderdelen: [
       { name: "RSG Run", icon: "🏃" },
-      { name: "Shuttle Run", icon: "🏃" },
+      { name: "Shuttle Run", icon: "📈" },
     ],
   },
 ];
@@ -100,6 +100,14 @@ export default async function LeerlingPage({
     .limit(1)
     .maybeSingle();
 
+  const { data: conditieScore } = await supabase
+    .from("conditie_scores")
+    .select("inzet, technisch, tactisch, limieten, rsg_run, shuttle_run")
+    .eq("student_id", Number(id))
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
   const softbalValues = softbalScore
     ? [
         Number(softbalScore.tactiek_veldpartij),
@@ -129,6 +137,18 @@ export default async function LeerlingPage({
     ? calculateAverage(lo1Grades)
     : null;
   const lo1Grade = lo1Average === null ? null : getGrade(lo1Average);
+  const lo5Grades = conditieScore
+    ? [
+        conditieScore.inzet,
+        conditieScore.technisch,
+        conditieScore.tactisch,
+        conditieScore.limieten,
+      ].map((score) => gradeToValue(getGrade(Number(score))))
+    : [];
+  const lo5Average = lo5Grades.length
+    ? calculateAverage(lo5Grades)
+    : null;
+  const lo5Grade = lo5Average === null ? null : getGrade(lo5Average);
 
   return (
     <main className="min-h-screen p-10 bg-slate-100">
@@ -152,20 +172,6 @@ export default async function LeerlingPage({
           <p>
             <strong>Klas:</strong> {leerling.klas}
           </p>
-
-          <Link
-            href={`/leerlingen/${id}/softbal`}
-            className="inline-block mt-6 rounded-lg bg-slate-800 px-4 py-2 text-white hover:bg-slate-700"
-          >
-            Softbal beoordelen
-          </Link>
-
-          <Link
-            href={`/leerlingen/${id}/volleybal`}
-            className="ml-3 inline-block rounded-lg bg-slate-800 px-4 py-2 text-white hover:bg-slate-700"
-          >
-            Volleybal beoordelen
-          </Link>
         </div>
 
         <section className="mt-6 space-y-6">
@@ -179,20 +185,30 @@ export default async function LeerlingPage({
                     : {lo1Grade ?? "Nog niet beoordeeld"}
                   </span>
                 )}
+                {groep.title === "LO5 Conditie" && (
+                  <span className="ml-2">
+                    : {lo5Grade ?? "Nog niet beoordeeld"}
+                  </span>
+                )}
               </h3>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {groep.onderdelen.map((onderdeel) => {
                   const isSoftbal = onderdeel.slug === "softbal";
                   const isVolleybal = onderdeel.slug === "volleybal";
+                  const isConditie = groep.title === "LO5 Conditie";
                   const score = isSoftbal
                     ? softbalScore
                     : isVolleybal
                       ? volleybalScore
+                      : isConditie
+                        ? conditieScore
                       : null;
                   const average = isSoftbal
                     ? softbalAverage
                     : isVolleybal
                       ? volleybalAverage
+                      : isConditie
+                        ? lo5Average
                       : null;
                   const status = score
                     ? `✅ Beoordeeld · ${getGrade(average!)}`
@@ -203,7 +219,7 @@ export default async function LeerlingPage({
                         <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#362665]/10 text-2xl" aria-hidden="true">
                           {onderdeel.icon}
                         </span>
-                        {(isSoftbal || isVolleybal) && (
+                        {(isSoftbal || isVolleybal || isConditie) && (
                           <span className="text-xl text-[#362665]" aria-hidden="true">→</span>
                         )}
                       </div>
@@ -212,10 +228,14 @@ export default async function LeerlingPage({
                     </>
                   );
 
-                  return isSoftbal || isVolleybal ? (
+                  return isSoftbal || isVolleybal || isConditie ? (
                     <Link
                       key={onderdeel.name}
-                      href={`/leerlingen/${id}/${onderdeel.slug}`}
+                      href={
+                        isConditie
+                          ? `/leerlingen/${id}/conditie`
+                          : `/leerlingen/${id}/${onderdeel.slug}`
+                      }
                       className="group rounded-xl border border-[#362665]/10 p-4 transition-all hover:-translate-y-1 hover:border-[#EF8A00]/50 hover:shadow-md focus:outline-none focus:ring-4 focus:ring-[#EF8A00]/40"
                     >
                       {content}
