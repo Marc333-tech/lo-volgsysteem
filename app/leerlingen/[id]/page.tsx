@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { supabase } from "../../../lib/supabase";
+import { createSupabaseServerClient } from "../../../lib/supabase/server";
 
 function calculateAverage(scores: number[]) {
   return scores.reduce((total, score) => total + score, 0) / scores.length;
@@ -77,8 +78,8 @@ const loOnderdelen = [
   {
     title: "LO4 Klimmen",
     onderdelen: [
-      { name: "Klimmen", icon: "🧗" },
-      { name: "Zekeren", icon: "🧗" },
+      { name: "Klimmen", icon: "🧗", slug: "klimmen" },
+      { name: "Zekeren", icon: "🪢", slug: "klimmen" },
     ],
   },
   {
@@ -145,6 +146,15 @@ export default async function LeerlingPage({
     .limit(1)
     .maybeSingle();
 
+  const serverSupabase = await createSupabaseServerClient();
+  const { data: klimmenScore } = await serverSupabase
+    .from("klimmen_scores")
+    .select("klimmen, zekeren")
+    .eq("student_id", Number(id))
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
   const softbalValues = softbalScore
     ? [
         Number(softbalScore.tactiek_veldpartij),
@@ -197,6 +207,21 @@ export default async function LeerlingPage({
     ? calculateAverage(lo5Grades)
     : null;
   const lo5Grade = lo5Average === null ? null : getGrade(lo5Average);
+  const klimmenGrades = klimmenScore
+    ? [klimmenScore.klimmen, klimmenScore.zekeren].map((score) =>
+        gradeToValue(getGrade(Number(score))),
+      )
+    : [];
+  const lo4Average = klimmenGrades.length
+    ? calculateAverage(klimmenGrades)
+    : null;
+  const lo4Grade = lo4Average === null ? null : getGrade(lo4Average);
+  const klimmenGrade = klimmenScore
+    ? getGrade(Number(klimmenScore.klimmen))
+    : null;
+  const zekerenGrade = klimmenScore
+    ? getGrade(Number(klimmenScore.zekeren))
+    : null;
   const loProgress = {
     "LO1 Spel": {
       assessed: Number(Boolean(softbalScore)) + Number(Boolean(volleybalScore)),
@@ -204,7 +229,10 @@ export default async function LeerlingPage({
     },
     "LO2 Turnen": { assessed: Number(Boolean(acrogymScore)), total: 1 },
     "LO3 Atletiek": { assessed: 0, total: 5 },
-    "LO4 Klimmen": { assessed: 0, total: 2 },
+    "LO4 Klimmen": {
+      assessed: klimmenScore ? 2 : 0,
+      total: 2,
+    },
     "LO5 Conditie": {
       assessed:
         Number(hasResult(conditieScore?.rsg_run)) +
@@ -216,7 +244,7 @@ export default async function LeerlingPage({
     { name: "LO1 Spel", grade: lo1Grade, progress: loProgress["LO1 Spel"] },
     { name: "LO2 Turnen", grade: lo2Grade, progress: loProgress["LO2 Turnen"] },
     { name: "LO3 Atletiek", grade: null, progress: loProgress["LO3 Atletiek"] },
-    { name: "LO4 Klimmen", grade: null, progress: loProgress["LO4 Klimmen"] },
+    { name: "LO4 Klimmen", grade: lo4Grade, progress: loProgress["LO4 Klimmen"] },
     { name: "LO5 Conditie", grade: lo5Grade, progress: loProgress["LO5 Conditie"] },
   ];
 
@@ -280,6 +308,11 @@ export default async function LeerlingPage({
                     <GradeBadge grade={lo2Grade} />
                   </span>
                 )}
+                {groep.title === "LO4 Klimmen" && (
+                  <span className="ml-2 align-middle">
+                    <GradeBadge grade={lo4Grade} />
+                  </span>
+                )}
                 {groep.title === "LO5 Conditie" && (
                   <span className="ml-2 align-middle">
                     <GradeBadge grade={lo5Grade} />
@@ -295,6 +328,7 @@ export default async function LeerlingPage({
                   const isSoftbal = onderdeel.slug === "softbal";
                   const isVolleybal = onderdeel.slug === "volleybal";
                   const isAcrogym = onderdeel.slug === "acrogym";
+                  const isKlimmen = groep.title === "LO4 Klimmen";
                   const isConditie = groep.title === "LO5 Conditie";
                   const score = isSoftbal
                     ? softbalScore
@@ -302,6 +336,8 @@ export default async function LeerlingPage({
                       ? volleybalScore
                       : isAcrogym
                         ? acrogymScore
+                      : isKlimmen
+                        ? klimmenScore
                       : isConditie
                         ? conditieScore
                       : null;
@@ -311,6 +347,8 @@ export default async function LeerlingPage({
                       ? volleybalAverage
                       : isAcrogym
                         ? lo2Average
+                      : isKlimmen
+                        ? lo4Average
                       : isConditie
                         ? lo5Average
                       : null;
@@ -320,24 +358,34 @@ export default async function LeerlingPage({
                         <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#362665]/10 text-2xl" aria-hidden="true">
                           {onderdeel.icon}
                         </span>
-                        {(isSoftbal || isVolleybal || isAcrogym || isConditie) && (
+                        {(isSoftbal || isVolleybal || isAcrogym || isKlimmen || isConditie) && (
                           <span className="text-xl text-[#362665]" aria-hidden="true">→</span>
                         )}
                       </div>
                       <h4 className="mt-5 text-lg font-bold text-[#362665]">{onderdeel.name}</h4>
                       <div className="mt-2">
                         <GradeBadge
-                          grade={score ? getGrade(average!) : null}
+                          grade={
+                            isKlimmen
+                              ? onderdeel.name === "Klimmen"
+                                ? klimmenGrade
+                                : zekerenGrade
+                              : score
+                                ? getGrade(average!)
+                                : null
+                          }
                         />
                       </div>
                     </>
                   );
 
-                  return isSoftbal || isVolleybal || isAcrogym || isConditie ? (
+                  return isSoftbal || isVolleybal || isAcrogym || isKlimmen || isConditie ? (
                     <Link
                       key={onderdeel.name}
                       href={
-                        isConditie
+                        isKlimmen
+                          ? `/leerlingen/${id}/klimmen`
+                          : isConditie
                           ? `/leerlingen/${id}/conditie`
                           : `/leerlingen/${id}/${onderdeel.slug}`
                       }
