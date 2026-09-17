@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { supabase } from "../../../lib/supabase";
+import { createSupabaseServerClient } from "../../../lib/supabase/server";
 
 type SoftbalScore = {
 	student_id: number;
@@ -15,6 +16,29 @@ type VolleybalScore = {
 	inzet: number;
 	techniek: number;
 	tactiek: number;
+};
+
+type AcrogymScore = {
+	student_id: number;
+	inzet: number;
+	techniek: number;
+	ontwerpen: number;
+};
+
+type KlimmenScore = {
+	student_id: number;
+	klimmen: number;
+	zekeren: number;
+};
+
+type ConditieScore = {
+	student_id: number;
+	inzet: number;
+	technisch: number;
+	tactisch: number;
+	limieten: number;
+	rsg_run: number | null;
+	shuttle_run: number | null;
 };
 
 const leerjaarPerKlas: Record<string, number> = {
@@ -43,6 +67,18 @@ function getGrade(scores: number[]) {
 	return "G";
 }
 
+function gradeToValue(grade: string) {
+	return grade === "G" ? 3 : grade === "V" ? 2 : 1;
+}
+
+function getLoGrade(grades: string[]) {
+	if (grades.length === 0) {
+		return null;
+	}
+
+	return getGrade([grades.reduce((total, grade) => total + gradeToValue(grade), 0) / grades.length]);
+}
+
 export default async function KlasPage({
 	params,
 }: {
@@ -59,10 +95,20 @@ export default async function KlasPage({
 
 	const softbalScoresByStudent = new Map<number, SoftbalScore>();
 	const volleybalScoresByStudent = new Map<number, VolleybalScore>();
+	const acrogymScoresByStudent = new Map<number, AcrogymScore>();
+	const klimmenScoresByStudent = new Map<number, KlimmenScore>();
+	const conditieScoresByStudent = new Map<number, ConditieScore>();
 
 	if (students && students.length > 0) {
 		const studentIds = students.map((student) => Number(student.id));
-		const [{ data: softbalScores }, { data: volleybalScores }] =
+		const serverSupabase = await createSupabaseServerClient();
+		const [
+			{ data: softbalScores },
+			{ data: volleybalScores },
+			{ data: acrogymScores },
+			{ data: klimmenScores },
+			{ data: conditieScores },
+		] =
 			await Promise.all([
 				supabase
 					.from("softbal_scores")
@@ -74,6 +120,23 @@ export default async function KlasPage({
 				supabase
 					.from("volleybal_scores")
 					.select("student_id, inzet, techniek, tactiek")
+					.in("student_id", studentIds)
+					.order("created_at", { ascending: false }),
+				supabase
+					.from("acrogym_scores")
+					.select("student_id, inzet, techniek, ontwerpen")
+					.in("student_id", studentIds)
+					.order("created_at", { ascending: false }),
+				serverSupabase
+					.from("klimmen_scores")
+					.select("student_id, klimmen, zekeren")
+					.in("student_id", studentIds)
+					.order("created_at", { ascending: false }),
+				supabase
+					.from("conditie_scores")
+					.select(
+						"student_id, inzet, technisch, tactisch, limieten, rsg_run, shuttle_run",
+					)
 					.in("student_id", studentIds)
 					.order("created_at", { ascending: false }),
 			]);
@@ -91,6 +154,30 @@ export default async function KlasPage({
 
 			if (!volleybalScoresByStudent.has(studentId)) {
 				volleybalScoresByStudent.set(studentId, score as VolleybalScore);
+			}
+		});
+
+		acrogymScores?.forEach((score) => {
+			const studentId = Number(score.student_id);
+
+			if (!acrogymScoresByStudent.has(studentId)) {
+				acrogymScoresByStudent.set(studentId, score as AcrogymScore);
+			}
+		});
+
+		klimmenScores?.forEach((score) => {
+			const studentId = Number(score.student_id);
+
+			if (!klimmenScoresByStudent.has(studentId)) {
+				klimmenScoresByStudent.set(studentId, score as KlimmenScore);
+			}
+		});
+
+		conditieScores?.forEach((score) => {
+			const studentId = Number(score.student_id);
+
+			if (!conditieScoresByStudent.has(studentId)) {
+				conditieScoresByStudent.set(studentId, score as ConditieScore);
 			}
 		});
 	}
@@ -131,6 +218,57 @@ export default async function KlasPage({
 							const studentId = Number(student.id);
 							const softbalScore = softbalScoresByStudent.get(studentId);
 							const volleybalScore = volleybalScoresByStudent.get(studentId);
+							const acrogymScore = acrogymScoresByStudent.get(studentId);
+							const klimmenScore = klimmenScoresByStudent.get(studentId);
+							const conditieScore = conditieScoresByStudent.get(studentId);
+							const softbalGrade = softbalScore
+								? getGrade([
+										softbalScore.tactiek_veldpartij,
+										softbalScore.tactiek_slagpartij,
+										softbalScore.werpen_vangen,
+										softbalScore.slaan,
+									])
+								: null;
+							const volleybalGrade = volleybalScore
+								? getGrade([
+										volleybalScore.inzet,
+										volleybalScore.techniek,
+										volleybalScore.tactiek,
+									])
+								: null;
+							const loGrades = [
+								getLoGrade([...(softbalGrade ? [softbalGrade] : []), ...(volleybalGrade ? [volleybalGrade] : [])]),
+								acrogymScore
+									? getLoGrade([
+											getGrade([acrogymScore.inzet]),
+											getGrade([acrogymScore.techniek]),
+											getGrade([acrogymScore.ontwerpen]),
+										])
+									: null,
+								null,
+								klimmenScore
+									? getLoGrade([
+											getGrade([klimmenScore.klimmen]),
+											getGrade([klimmenScore.zekeren]),
+										])
+									: null,
+								conditieScore
+									? getLoGrade([
+											getGrade([conditieScore.inzet]),
+											getGrade([conditieScore.technisch]),
+											getGrade([conditieScore.tactisch]),
+											getGrade([conditieScore.limieten]),
+										])
+									: null,
+							];
+							const loNames = [
+								"LO1 Spel",
+								"LO2 Turnen",
+								"LO3 Atletiek",
+								"LO4 Klimmen",
+								"LO5 Conditie",
+							];
+							const completedLos = loGrades.filter((grade) => grade !== null).length;
 
 							return (
 							<Link
@@ -159,29 +297,15 @@ export default async function KlasPage({
 									<span className="font-semibold text-slate-800">Stamnummer:</span>{" "}
 									{student.stamnummer}
 								</p>
-								<p className="mt-4 text-sm font-semibold text-[#362665]">
-									{Number(softbalScore !== undefined) + Number(volleybalScore !== undefined)}
-									/2 onderdelen beoordeeld
-								</p>
-								<p className="mt-4 text-sm font-semibold text-slate-600">
-									{softbalScore
-										? `✅ Softbal ${getGrade([
-												softbalScore.tactiek_veldpartij,
-												softbalScore.tactiek_slagpartij,
-												softbalScore.werpen_vangen,
-												softbalScore.slaan,
-											])}`
-										: "❌ Softbal niet beoordeeld"}
-								</p>
-								<p className="mt-2 text-sm font-semibold text-slate-600">
-									{volleybalScore
-										? `✅ Volleybal ${getGrade([
-												volleybalScore.inzet,
-												volleybalScore.techniek,
-												volleybalScore.tactiek,
-											])}`
-										: "❌ Volleybal niet beoordeeld"}
-								</p>
+								<div className="mt-4 space-y-2 text-sm font-semibold text-slate-600">
+									<p className="text-[#362665]">{completedLos}/5 onderdelen afgerond</p>
+									{loNames.map((name, index) => (
+										<div key={name} className="flex justify-between gap-4">
+											<span>{name}</span>
+											<span className="text-[#362665]">{loGrades[index] ?? "-"}</span>
+										</div>
+									))}
+								</div>
 							</Link>
 							);
 						})}
