@@ -13,7 +13,7 @@ type Leerling = {
 	klas: string;
 };
 
-type BasketbalScore = {
+type HandbalScore = {
 	inzet: number;
 	techniek: number;
 	tactiek: number;
@@ -58,7 +58,7 @@ function GradeBadge({ grade }: { grade: string | null }) {
 	);
 }
 
-export default function BasketbalPage({
+export default function HandbalPage({
 	params,
 }: {
 	params: Promise<{ id: string }>;
@@ -86,7 +86,7 @@ export default function BasketbalPage({
 		setIsSaving(true);
 		setSaveMessage(null);
 
-		const { error } = await supabase.from("basketbal_scores").insert({
+		const { error } = await supabase.from("handbal_scores").insert({
 			student_id: Number(id),
 			inzet: scores.Inzet,
 			techniek: scores.Techniek,
@@ -112,7 +112,7 @@ export default function BasketbalPage({
 					.eq("id", id)
 					.single(),
 				supabase
-					.from("basketbal_scores")
+					.from("handbal_scores")
 					.select("inzet, techniek, tactiek")
 					.eq("student_id", Number(id))
 					.order("created_at", { ascending: false })
@@ -124,7 +124,7 @@ export default function BasketbalPage({
 				setLeerling(leerlingData);
 
 				if (scoreData) {
-					const savedScore = scoreData as BasketbalScore;
+					const savedScore = scoreData as HandbalScore;
 
 					setScores({
 						Inzet: savedScore.inzet,
@@ -155,7 +155,7 @@ export default function BasketbalPage({
 				</Link>
 
 				<div className="mb-6 flex flex-wrap items-baseline justify-between gap-3">
-					<h1 className="text-4xl font-bold">Basketbal beoordeling</h1>
+					<h1 className="text-4xl font-bold">Handbal beoordeling</h1>
 					{isLoading ? (
 						<p className="text-sm text-slate-600">Leerling laden...</p>
 					) : leerling ? (

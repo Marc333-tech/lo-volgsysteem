@@ -25,6 +25,16 @@ type BasketbalScore = {
 	tactiek: number;
 };
 
+type HandbalScore = BasketbalScore;
+
+type HockeyScore = {
+	student_id: number;
+	spelregels: number;
+	techniek: number;
+	tactiek: number;
+	spel: number;
+};
+
 type AcrogymScore = {
 	student_id: number;
 	inzet: number;
@@ -63,11 +73,11 @@ const leerjaarPerKlas: Record<string, number> = {
 function getGrade(scores: number[]) {
 	const average = scores.reduce((total, score) => total + score, 0) / scores.length;
 
-	if (average < 2) {
+	if (average < 1.5) {
 		return "O";
 	}
 
-	if (average < 3) {
+	if (average < 2.5) {
 		return "V";
 	}
 
@@ -103,6 +113,8 @@ export default async function KlasPage({
 	const softbalScoresByStudent = new Map<number, SoftbalScore>();
 	const volleybalScoresByStudent = new Map<number, VolleybalScore>();
 	const basketbalScoresByStudent = new Map<number, BasketbalScore>();
+	const handbalScoresByStudent = new Map<number, HandbalScore>();
+	const hockeyScoresByStudent = new Map<number, HockeyScore>();
 	const acrogymScoresByStudent = new Map<number, AcrogymScore>();
 	const klimmenScoresByStudent = new Map<number, KlimmenScore>();
 	const conditieScoresByStudent = new Map<number, ConditieScore>();
@@ -114,6 +126,8 @@ export default async function KlasPage({
 			{ data: softbalScores },
 			{ data: volleybalScores },
 			{ data: basketbalScores },
+			{ data: handbalScores },
+			{ data: hockeyScores },
 			{ data: acrogymScores },
 			{ data: klimmenScores },
 			{ data: conditieScores },
@@ -134,6 +148,16 @@ export default async function KlasPage({
 				supabase
 					.from("basketbal_scores")
 					.select("student_id, inzet, techniek, tactiek")
+					.in("student_id", studentIds)
+					.order("created_at", { ascending: false }),
+				supabase
+					.from("handbal_scores")
+					.select("student_id, inzet, techniek, tactiek")
+					.in("student_id", studentIds)
+					.order("created_at", { ascending: false }),
+				supabase
+					.from("hockey_scores")
+					.select("student_id, spelregels, techniek, tactiek, spel")
 					.in("student_id", studentIds)
 					.order("created_at", { ascending: false }),
 				supabase
@@ -176,6 +200,22 @@ export default async function KlasPage({
 
 			if (!basketbalScoresByStudent.has(studentId)) {
 				basketbalScoresByStudent.set(studentId, score as BasketbalScore);
+			}
+		});
+
+		handbalScores?.forEach((score) => {
+			const studentId = Number(score.student_id);
+
+			if (!handbalScoresByStudent.has(studentId)) {
+				handbalScoresByStudent.set(studentId, score as HandbalScore);
+			}
+		});
+
+		hockeyScores?.forEach((score) => {
+			const studentId = Number(score.student_id);
+
+			if (!hockeyScoresByStudent.has(studentId)) {
+				hockeyScoresByStudent.set(studentId, score as HockeyScore);
 			}
 		});
 
@@ -241,6 +281,8 @@ export default async function KlasPage({
 							const softbalScore = softbalScoresByStudent.get(studentId);
 							const volleybalScore = volleybalScoresByStudent.get(studentId);
 							const basketbalScore = basketbalScoresByStudent.get(studentId);
+							const handbalScore = handbalScoresByStudent.get(studentId);
+							const hockeyScore = hockeyScoresByStudent.get(studentId);
 							const acrogymScore = acrogymScoresByStudent.get(studentId);
 							const klimmenScore = klimmenScoresByStudent.get(studentId);
 							const conditieScore = conditieScoresByStudent.get(studentId);
@@ -266,11 +308,25 @@ export default async function KlasPage({
 									basketbalScore.tactiek,
 								])
 							: null;
+					const handbalGrade = handbalScore
+						? getGrade([handbalScore.inzet, handbalScore.techniek, handbalScore.tactiek])
+						: null;
+					const hockeyGrade = hockeyScore
+						? getGrade([
+								hockeyScore.spelregels,
+								hockeyScore.techniek,
+								hockeyScore.tactiek,
+								hockeyScore.spel,
+							])
+						: null;
+					const isH3 = ["H3A", "H3B"].includes(klas.toUpperCase());
 							const loGrades = [
 							getLoGrade([
 								...(softbalGrade ? [softbalGrade] : []),
 								...(volleybalGrade ? [volleybalGrade] : []),
 								...(basketbalGrade ? [basketbalGrade] : []),
+						...(isH3 ? [] : handbalGrade ? [handbalGrade] : []),
+						...(isH3 ? [] : hockeyGrade ? [hockeyGrade] : []),
 							]),
 								acrogymScore
 									? getLoGrade([
@@ -295,7 +351,6 @@ export default async function KlasPage({
 										])
 									: null,
 							];
-								const isH3 = ["H3A", "H3B"].includes(klas.toUpperCase());
 								const loRows = isH3
 									? [
 											{ name: "LO1 Spel", grade: loGrades[0] },

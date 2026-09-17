@@ -4,7 +4,7 @@ import Link from "next/link";
 import { use, useEffect, useState } from "react";
 import { supabase } from "../../../../lib/supabase";
 
-const categorieen = ["Inzet", "Techniek", "Tactiek"];
+const categorieen = ["Spelregels", "Techniek", "Tactiek", "Spel"];
 const beoordelingen = [1, 2, 3, 4];
 
 type Leerling = {
@@ -13,10 +13,11 @@ type Leerling = {
 	klas: string;
 };
 
-type BasketbalScore = {
-	inzet: number;
+type HockeyScore = {
+	spelregels: number;
 	techniek: number;
 	tactiek: number;
+	spel: number;
 };
 
 function getGrade(scores: number[]) {
@@ -58,7 +59,7 @@ function GradeBadge({ grade }: { grade: string | null }) {
 	);
 }
 
-export default function BasketbalPage({
+export default function HockeyPage({
 	params,
 }: {
 	params: Promise<{ id: string }>;
@@ -86,11 +87,12 @@ export default function BasketbalPage({
 		setIsSaving(true);
 		setSaveMessage(null);
 
-		const { error } = await supabase.from("basketbal_scores").insert({
+		const { error } = await supabase.from("hockey_scores").insert({
 			student_id: Number(id),
-			inzet: scores.Inzet,
+			spelregels: scores.Spelregels,
 			techniek: scores.Techniek,
 			tactiek: scores.Tactiek,
+			spel: scores.Spel,
 		});
 
 		setIsSaving(false);
@@ -112,8 +114,8 @@ export default function BasketbalPage({
 					.eq("id", id)
 					.single(),
 				supabase
-					.from("basketbal_scores")
-					.select("inzet, techniek, tactiek")
+					.from("hockey_scores")
+					.select("spelregels, techniek, tactiek, spel")
 					.eq("student_id", Number(id))
 					.order("created_at", { ascending: false })
 					.limit(1)
@@ -124,12 +126,13 @@ export default function BasketbalPage({
 				setLeerling(leerlingData);
 
 				if (scoreData) {
-					const savedScore = scoreData as BasketbalScore;
+					const savedScore = scoreData as HockeyScore;
 
 					setScores({
-						Inzet: savedScore.inzet,
+						Spelregels: savedScore.spelregels,
 						Techniek: savedScore.techniek,
 						Tactiek: savedScore.tactiek,
+						Spel: savedScore.spel,
 					});
 				}
 
@@ -155,7 +158,7 @@ export default function BasketbalPage({
 				</Link>
 
 				<div className="mb-6 flex flex-wrap items-baseline justify-between gap-3">
-					<h1 className="text-4xl font-bold">Basketbal beoordeling</h1>
+					<h1 className="text-4xl font-bold">Hockey beoordeling</h1>
 					{isLoading ? (
 						<p className="text-sm text-slate-600">Leerling laden...</p>
 					) : leerling ? (
