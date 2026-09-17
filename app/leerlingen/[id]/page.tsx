@@ -57,7 +57,7 @@ const loOnderdelen = [
     onderdelen: [
       { name: "Softbal", icon: "🥎", slug: "softbal" },
       { name: "Volleybal", icon: "🏐", slug: "volleybal" },
-      { name: "Basketbal", icon: "🏀" },
+      { name: "Basketbal", icon: "🏀", slug: "basketbal" },
       { name: "Hockey", icon: "🏑" },
     ],
   },
@@ -130,6 +130,14 @@ export default async function LeerlingPage({
     .limit(1)
     .maybeSingle();
 
+  const { data: basketbalScore } = await supabase
+    .from("basketbal_scores")
+    .select("inzet, techniek, tactiek")
+    .eq("student_id", Number(id))
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
   const { data: acrogymScore } = await supabase
     .from("acrogym_scores")
     .select("inzet, techniek, ontwerpen")
@@ -170,15 +178,26 @@ export default async function LeerlingPage({
         Number(volleybalScore.tactiek),
       ]
     : null;
+  const basketbalValues = basketbalScore
+    ? [
+        Number(basketbalScore.inzet),
+        Number(basketbalScore.techniek),
+        Number(basketbalScore.tactiek),
+      ]
+    : null;
   const softbalAverage = softbalValues
     ? calculateAverage(softbalValues)
     : null;
   const volleybalAverage = volleybalValues
     ? calculateAverage(volleybalValues)
     : null;
+  const basketbalAverage = basketbalValues
+    ? calculateAverage(basketbalValues)
+    : null;
   const lo1Grades = [
     softbalAverage !== null ? gradeToValue(getGrade(softbalAverage)) : null,
     volleybalAverage !== null ? gradeToValue(getGrade(volleybalAverage)) : null,
+    basketbalAverage !== null ? gradeToValue(getGrade(basketbalAverage)) : null,
   ].filter((grade): grade is number => grade !== null);
   const lo1Average = lo1Grades.length
     ? calculateAverage(lo1Grades)
@@ -224,8 +243,11 @@ export default async function LeerlingPage({
     : null;
   const loProgress = {
     "LO1 Spel": {
-      assessed: Number(Boolean(softbalScore)) + Number(Boolean(volleybalScore)),
-      total: 4,
+      assessed:
+        Number(Boolean(softbalScore)) +
+        Number(Boolean(volleybalScore)) +
+        Number(Boolean(basketbalScore)),
+      total: 5,
     },
     "LO2 Turnen": { assessed: Number(Boolean(acrogymScore)), total: 1 },
     "LO3 Atletiek": { assessed: 0, total: 5 },
@@ -366,6 +388,7 @@ export default async function LeerlingPage({
                 {groep.onderdelen.map((onderdeel) => {
                   const isSoftbal = onderdeel.slug === "softbal";
                   const isVolleybal = onderdeel.slug === "volleybal";
+                  const isBasketbal = onderdeel.slug === "basketbal";
                   const isAcrogym = onderdeel.slug === "acrogym";
                   const isKlimmen = groep.title === "LO4 Klimmen";
                   const isConditie =
@@ -375,6 +398,8 @@ export default async function LeerlingPage({
                     ? softbalScore
                     : isVolleybal
                       ? volleybalScore
+                      : isBasketbal
+                        ? basketbalScore
                       : isAcrogym
                         ? acrogymScore
                       : isKlimmen
@@ -386,6 +411,8 @@ export default async function LeerlingPage({
                     ? softbalAverage
                     : isVolleybal
                       ? volleybalAverage
+                      : isBasketbal
+                        ? basketbalAverage
                       : isAcrogym
                         ? lo2Average
                       : isKlimmen
@@ -399,28 +426,36 @@ export default async function LeerlingPage({
                         <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#362665]/10 text-2xl" aria-hidden="true">
                           {onderdeel.icon}
                         </span>
-                        {(isSoftbal || isVolleybal || isAcrogym || isKlimmen || isConditie) && (
+                        {(isSoftbal || isVolleybal || isBasketbal || isAcrogym || isKlimmen || isConditie) && (
                           <span className="text-xl text-[#362665]" aria-hidden="true">→</span>
                         )}
                       </div>
                       <h4 className="mt-5 text-lg font-bold text-[#362665]">{onderdeel.name}</h4>
                       <div className="mt-2">
-                        <GradeBadge
-                          grade={
-                            isKlimmen
-                              ? onderdeel.name === "Klimmen"
-                                ? klimmenGrade
-                                : zekerenGrade
-                              : score
-                                ? getGrade(average!)
-                                : null
-                          }
-                        />
+                        {isBasketbal ? (
+                          <span className="text-sm font-semibold text-slate-600">
+                            {score
+                              ? `✅ Beoordeeld · ${getGrade(average!)}`
+                              : "❌ Nog niet beoordeeld"}
+                          </span>
+                        ) : (
+                          <GradeBadge
+                            grade={
+                              isKlimmen
+                                ? onderdeel.name === "Klimmen"
+                                  ? klimmenGrade
+                                  : zekerenGrade
+                                : score
+                                  ? getGrade(average!)
+                                  : null
+                            }
+                          />
+                        )}
                       </div>
                     </>
                   );
 
-                  return isSoftbal || isVolleybal || isAcrogym || isKlimmen || isConditie ? (
+                  return isSoftbal || isVolleybal || isBasketbal || isAcrogym || isKlimmen || isConditie ? (
                     <Link
                       key={onderdeel.name}
                       href={

@@ -18,6 +18,13 @@ type VolleybalScore = {
 	tactiek: number;
 };
 
+type BasketbalScore = {
+	student_id: number;
+	inzet: number;
+	techniek: number;
+	tactiek: number;
+};
+
 type AcrogymScore = {
 	student_id: number;
 	inzet: number;
@@ -95,6 +102,7 @@ export default async function KlasPage({
 
 	const softbalScoresByStudent = new Map<number, SoftbalScore>();
 	const volleybalScoresByStudent = new Map<number, VolleybalScore>();
+	const basketbalScoresByStudent = new Map<number, BasketbalScore>();
 	const acrogymScoresByStudent = new Map<number, AcrogymScore>();
 	const klimmenScoresByStudent = new Map<number, KlimmenScore>();
 	const conditieScoresByStudent = new Map<number, ConditieScore>();
@@ -105,6 +113,7 @@ export default async function KlasPage({
 		const [
 			{ data: softbalScores },
 			{ data: volleybalScores },
+			{ data: basketbalScores },
 			{ data: acrogymScores },
 			{ data: klimmenScores },
 			{ data: conditieScores },
@@ -119,6 +128,11 @@ export default async function KlasPage({
 					.order("created_at", { ascending: false }),
 				supabase
 					.from("volleybal_scores")
+					.select("student_id, inzet, techniek, tactiek")
+					.in("student_id", studentIds)
+					.order("created_at", { ascending: false }),
+				supabase
+					.from("basketbal_scores")
 					.select("student_id, inzet, techniek, tactiek")
 					.in("student_id", studentIds)
 					.order("created_at", { ascending: false }),
@@ -154,6 +168,14 @@ export default async function KlasPage({
 
 			if (!volleybalScoresByStudent.has(studentId)) {
 				volleybalScoresByStudent.set(studentId, score as VolleybalScore);
+			}
+		});
+
+		basketbalScores?.forEach((score) => {
+			const studentId = Number(score.student_id);
+
+			if (!basketbalScoresByStudent.has(studentId)) {
+				basketbalScoresByStudent.set(studentId, score as BasketbalScore);
 			}
 		});
 
@@ -218,6 +240,7 @@ export default async function KlasPage({
 							const studentId = Number(student.id);
 							const softbalScore = softbalScoresByStudent.get(studentId);
 							const volleybalScore = volleybalScoresByStudent.get(studentId);
+							const basketbalScore = basketbalScoresByStudent.get(studentId);
 							const acrogymScore = acrogymScoresByStudent.get(studentId);
 							const klimmenScore = klimmenScoresByStudent.get(studentId);
 							const conditieScore = conditieScoresByStudent.get(studentId);
@@ -236,8 +259,19 @@ export default async function KlasPage({
 										volleybalScore.tactiek,
 									])
 								: null;
+						const basketbalGrade = basketbalScore
+							? getGrade([
+									basketbalScore.inzet,
+									basketbalScore.techniek,
+									basketbalScore.tactiek,
+								])
+							: null;
 							const loGrades = [
-								getLoGrade([...(softbalGrade ? [softbalGrade] : []), ...(volleybalGrade ? [volleybalGrade] : [])]),
+							getLoGrade([
+								...(softbalGrade ? [softbalGrade] : []),
+								...(volleybalGrade ? [volleybalGrade] : []),
+								...(basketbalGrade ? [basketbalGrade] : []),
+							]),
 								acrogymScore
 									? getLoGrade([
 											getGrade([acrogymScore.inzet]),
