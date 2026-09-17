@@ -247,6 +247,41 @@ export default async function LeerlingPage({
     { name: "LO4 Klimmen", grade: lo4Grade, progress: loProgress["LO4 Klimmen"] },
     { name: "LO5 Conditie", grade: lo5Grade, progress: loProgress["LO5 Conditie"] },
   ];
+  const isH3 = ["H3A", "H3B"].includes(String(leerling.klas).toUpperCase());
+  const displayedLoResultRows = isH3
+    ? [
+        loResultRows[0],
+        loResultRows[1],
+        loResultRows[2],
+        { name: "LO4 Conditie", grade: lo5Grade, progress: loProgress["LO5 Conditie"] },
+      ]
+    : loResultRows;
+  const displayedLoOnderdelen = isH3
+    ? [
+        {
+          title: "LO1 Spel",
+          onderdelen: [
+            { name: "Softbal", icon: "🥎", slug: "softbal" },
+            { name: "Volleybal", icon: "🏐", slug: "volleybal" },
+          ],
+        },
+        {
+          title: "LO2 Turnen",
+          onderdelen: [{ name: "Springen", icon: "🏃" }],
+        },
+        {
+          title: "LO3 Atletiek",
+          onderdelen: [{ name: "Atletiek", icon: "🏃" }],
+        },
+        {
+          title: "LO4 Conditie",
+          onderdelen: [
+            { name: "RSG Run", icon: "🏃" },
+            { name: "Shuttle Run", icon: "📈" },
+          ],
+        },
+      ]
+    : loOnderdelen;
 
   return (
     <main className="min-h-screen p-10 bg-slate-100">
@@ -275,7 +310,7 @@ export default async function LeerlingPage({
         <section className="mt-6 rounded-xl bg-white p-6 shadow">
           <h2 className="mb-4 text-2xl font-bold text-[#362665]">LO Resultaten</h2>
           <div className="divide-y divide-slate-200">
-            {loResultRows.map(({ name, grade, progress }) => (
+            {displayedLoResultRows.map(({ name, grade, progress }) => (
               <div
                 key={name}
                 className="flex items-center justify-between py-3 first:pt-0 last:pb-0"
@@ -294,7 +329,7 @@ export default async function LeerlingPage({
 
         <section className="mt-6 space-y-6">
           <h2 className="text-2xl font-bold text-[#362665]">LO curriculum</h2>
-          {loOnderdelen.map((groep) => (
+          {displayedLoOnderdelen.map((groep) => (
             <section key={groep.title} className="rounded-2xl bg-white p-6 shadow-lg shadow-[#362665]/10">
               <h3 className="mb-4 text-xl font-bold text-[#362665]">
                 {groep.title}
@@ -313,14 +348,18 @@ export default async function LeerlingPage({
                     <GradeBadge grade={lo4Grade} />
                   </span>
                 )}
-                {groep.title === "LO5 Conditie" && (
+                {((groep.title === "LO5 Conditie") || (isH3 && groep.title === "LO4 Conditie")) && (
                   <span className="ml-2 align-middle">
                     <GradeBadge grade={lo5Grade} />
                   </span>
                 )}
                 <span className="ml-2 text-sm font-semibold text-slate-500">
-                  {loProgress[groep.title as keyof typeof loProgress].assessed}/
-                  {loProgress[groep.title as keyof typeof loProgress].total} onderdelen
+                  {loProgress[
+                    (isH3 && groep.title === "LO4 Conditie" ? "LO5 Conditie" : groep.title) as keyof typeof loProgress
+                  ].assessed}/
+                  {loProgress[
+                    (isH3 && groep.title === "LO4 Conditie" ? "LO5 Conditie" : groep.title) as keyof typeof loProgress
+                  ].total} onderdelen
                 </span>
               </h3>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -329,7 +368,9 @@ export default async function LeerlingPage({
                   const isVolleybal = onderdeel.slug === "volleybal";
                   const isAcrogym = onderdeel.slug === "acrogym";
                   const isKlimmen = groep.title === "LO4 Klimmen";
-                  const isConditie = groep.title === "LO5 Conditie";
+                  const isConditie =
+                    groep.title === "LO5 Conditie" ||
+                    (isH3 && groep.title === "LO4 Conditie");
                   const score = isSoftbal
                     ? softbalScore
                     : isVolleybal

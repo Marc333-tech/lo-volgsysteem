@@ -261,14 +261,22 @@ export default async function KlasPage({
 										])
 									: null,
 							];
-							const loNames = [
-								"LO1 Spel",
-								"LO2 Turnen",
-								"LO3 Atletiek",
-								"LO4 Klimmen",
-								"LO5 Conditie",
-							];
-							const completedLos = loGrades.filter((grade) => grade !== null).length;
+								const isH3 = ["H3A", "H3B"].includes(klas.toUpperCase());
+								const loRows = isH3
+									? [
+											{ name: "LO1 Spel", grade: loGrades[0] },
+											{ name: "LO2 Turnen", grade: loGrades[1] },
+											{ name: "LO3 Atletiek", grade: loGrades[2] },
+											{ name: "LO4 Conditie", grade: loGrades[4] },
+										]
+									: [
+											{ name: "LO1 Spel", grade: loGrades[0] },
+											{ name: "LO2 Turnen", grade: loGrades[1] },
+											{ name: "LO3 Atletiek", grade: loGrades[2] },
+											{ name: "LO4 Klimmen", grade: loGrades[3] },
+											{ name: "LO5 Conditie", grade: loGrades[4] },
+										];
+								const completedLos = loRows.filter(({ grade }) => grade !== null).length;
 
 							return (
 							<Link
@@ -298,11 +306,13 @@ export default async function KlasPage({
 									{student.stamnummer}
 								</p>
 								<div className="mt-4 space-y-2 text-sm font-semibold text-slate-600">
-									<p className="text-[#362665]">{completedLos}/5 onderdelen afgerond</p>
-									{loNames.map((name, index) => (
+									<p className="text-[#362665]">
+										{completedLos}/{loRows.length} onderdelen afgerond
+									</p>
+									{loRows.map(({ name, grade }) => (
 										<div key={name} className="flex justify-between gap-4">
 											<span>{name}</span>
-											<span className="text-[#362665]">{loGrades[index] ?? "-"}</span>
+											<span className="text-[#362665]">{grade ?? "-"}</span>
 										</div>
 									))}
 								</div>
