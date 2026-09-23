@@ -269,6 +269,12 @@ export default async function KlasPage({
 						Klas {klas}
 					</h1>
 					<div className="mt-5 h-1 w-20 rounded-full bg-[#EF8A00]" />
+					<Link
+						href={`/klassen/${klas}/beoordelen/softbal`}
+						className="mt-8 inline-flex items-center gap-2 rounded-lg bg-[#362665] px-5 py-3 font-semibold text-white shadow-lg shadow-[#362665]/15 transition-colors hover:bg-[#291c4d] focus:outline-none focus:ring-4 focus:ring-[#EF8A00]/40"
+					>
+						Beoordelingsmodus Softbal <span aria-hidden="true">→</span>
+					</Link>
 				</header>
 
 				{students && students.length > 0 ? (
