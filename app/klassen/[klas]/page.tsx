@@ -35,13 +35,6 @@ type HockeyScore = {
 	spel: number;
 };
 
-type AcrogymScore = {
-	student_id: number;
-	inzet: number;
-	techniek: number;
-	ontwerpen: number;
-};
-
 type KlimmenScore = {
 	student_id: number;
 	klimmen: number;
@@ -53,6 +46,14 @@ type ConditieScore = {
 	inzet: number;
 	technisch: number;
 	tactisch: number;
+};
+
+type SpringenScore = {
+	student_id: number;
+	inzet: number;
+	techniek: number;
+	sprongvormen: number;
+	combineren: number;
 };
 
 type PTAScore = {
@@ -122,6 +123,8 @@ export default async function KlasPage({
 	const { klas } = await params;
 	const leerjaar = leerjaarPerKlas[klas.toUpperCase()];
 	const hasPTA = new Set(["BZ4A", "H4A", "H4B", "H5A"]).has(klas.toUpperCase());
+	const isH3 = ["H3A", "H3B"].includes(klas.toUpperCase());
+	const hasKlimmen = /^B[12]/.test(klas.toUpperCase());
 
 	const { data: students } = await supabase
 		.from("students")
@@ -134,10 +137,10 @@ export default async function KlasPage({
 	const basketbalScoresByStudent = new Map<number, BasketbalScore>();
 	const handbalScoresByStudent = new Map<number, HandbalScore>();
 	const hockeyScoresByStudent = new Map<number, HockeyScore>();
-	const acrogymScoresByStudent = new Map<number, AcrogymScore>();
 	const klimmenScoresByStudent = new Map<number, KlimmenScore>();
 	const conditieScoresByStudent = new Map<number, ConditieScore>();
 	const ptaScoresByStudent = new Map<number, PTAScore>();
+	const springenScoresByStudent = new Map<number, SpringenScore>();
 
 	if (students && students.length > 0) {
 		const studentIds = students.map((student) => Number(student.id));
@@ -148,7 +151,6 @@ export default async function KlasPage({
 			{ data: basketbalScores },
 			{ data: handbalScores },
 			{ data: hockeyScores },
-			{ data: acrogymScores },
 			{ data: klimmenScores },
 			{ data: conditieScores },
 		] =
@@ -178,11 +180,6 @@ export default async function KlasPage({
 				supabase
 					.from("hockey_scores")
 					.select("student_id, spelregels, techniek, tactiek, spel")
-					.in("student_id", studentIds)
-					.order("created_at", { ascending: false }),
-				supabase
-					.from("acrogym_scores")
-					.select("student_id, inzet, techniek, ontwerpen")
 					.in("student_id", studentIds)
 					.order("created_at", { ascending: false }),
 				serverSupabase
@@ -239,14 +236,6 @@ export default async function KlasPage({
 			}
 		});
 
-		acrogymScores?.forEach((score) => {
-			const studentId = Number(score.student_id);
-
-			if (!acrogymScoresByStudent.has(studentId)) {
-				acrogymScoresByStudent.set(studentId, score as AcrogymScore);
-			}
-		});
-
 		klimmenScores?.forEach((score) => {
 			const studentId = Number(score.student_id);
 
@@ -283,6 +272,28 @@ export default async function KlasPage({
 				ptaScoresByStudent.set(studentId, typedScore);
 			}
 		});
+		}
+
+		if (!hasPTA) {
+			const { data: springenScores, error: springenScoresError } = await supabase
+				.from("springen_scores")
+				.select("student_id, inzet, techniek, sprongvormen, combineren")
+				.in("student_id", studentIds)
+				.order("created_at", { ascending: false });
+
+			if (springenScoresError) {
+				console.error("[KlasPage] springen_scores query failed:", springenScoresError);
+				throw new Error(`Springbeoordelingen laden mislukt: ${springenScoresError.message}`);
+			}
+
+			springenScores?.forEach((score) => {
+				const typedScore = score as SpringenScore;
+				const studentId = Number(typedScore.student_id);
+
+				if (!springenScoresByStudent.has(studentId)) {
+					springenScoresByStudent.set(studentId, typedScore);
+				}
+			});
 		}
 	}
 
@@ -337,11 +348,19 @@ export default async function KlasPage({
 							>
 								Beoordelingsmodus Conditie <span aria-hidden="true">→</span>
 							</Link>
+							{hasKlimmen && (
+								<Link
+									href={`/klassen/${klas}/beoordelen/klimmen`}
+									className="ml-3 mt-8 inline-flex items-center gap-2 rounded-lg bg-[#362665] px-5 py-3 font-semibold text-white shadow-lg shadow-[#362665]/15 transition-colors hover:bg-[#291c4d] focus:outline-none focus:ring-4 focus:ring-[#EF8A00]/40"
+								>
+									Beoordelingsmodus Klimmen <span aria-hidden="true">→</span>
+								</Link>
+							)}
 							<Link
-								href={`/klassen/${klas}/beoordelen/klimmen`}
+								href={`/klassen/${klas}/beoordelen/turnen-springen`}
 								className="ml-3 mt-8 inline-flex items-center gap-2 rounded-lg bg-[#362665] px-5 py-3 font-semibold text-white shadow-lg shadow-[#362665]/15 transition-colors hover:bg-[#291c4d] focus:outline-none focus:ring-4 focus:ring-[#EF8A00]/40"
 							>
-								Beoordelingsmodus Klimmen <span aria-hidden="true">→</span>
+								Beoordelingsmodus Turnen - Springen <span aria-hidden="true">→</span>
 							</Link>
 						</>
 					)}
@@ -367,10 +386,10 @@ export default async function KlasPage({
 							const basketbalScore = basketbalScoresByStudent.get(studentId);
 							const handbalScore = handbalScoresByStudent.get(studentId);
 							const hockeyScore = hockeyScoresByStudent.get(studentId);
-							const acrogymScore = acrogymScoresByStudent.get(studentId);
 							const klimmenScore = klimmenScoresByStudent.get(studentId);
 							const conditieScore = conditieScoresByStudent.get(studentId);
 							const ptaScore = ptaScoresByStudent.get(studentId);
+							const springenScore = springenScoresByStudent.get(studentId);
 							const softbalGrade = softbalScore
 								? getGrade([
 										softbalScore.tactiek_veldpartij,
@@ -404,7 +423,14 @@ export default async function KlasPage({
 								hockeyScore.spel,
 							])
 						: null;
-					const isH3 = ["H3A", "H3B"].includes(klas.toUpperCase());
+					const turnenSpringenGrade = springenScore
+						? getGrade([
+								springenScore.inzet,
+								springenScore.techniek,
+								springenScore.sprongvormen,
+								springenScore.combineren,
+							])
+						: null;
 							const loGrades = [
 							getLoGrade([
 								...(softbalGrade ? [softbalGrade] : []),
@@ -413,13 +439,7 @@ export default async function KlasPage({
 						...(isH3 ? [] : handbalGrade ? [handbalGrade] : []),
 						...(isH3 ? [] : hockeyGrade ? [hockeyGrade] : []),
 							]),
-								acrogymScore
-									? getLoGrade([
-											getGrade([acrogymScore.inzet]),
-											getGrade([acrogymScore.techniek]),
-											getGrade([acrogymScore.ontwerpen]),
-										])
-									: null,
+								turnenSpringenGrade,
 								null,
 								klimmenScore
 									? getLoGrade([
@@ -450,7 +470,9 @@ export default async function KlasPage({
 											{ name: "LO1 Spel", grade: loGrades[0] },
 											{ name: "LO2 Turnen", grade: loGrades[1] },
 											{ name: "LO3 Atletiek", grade: loGrades[2] },
-											{ name: "LO4 Klimmen", grade: loGrades[3] },
+											...(hasKlimmen
+												? [{ name: "LO4 Klimmen", grade: loGrades[3] }]
+												: []),
 											{ name: "LO5 Conditie", grade: loGrades[4] },
 										];
 								const displayRows = hasPTA
