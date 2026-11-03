@@ -55,6 +55,27 @@ type ConditieScore = {
 	tactisch: number;
 };
 
+type PTAScore = {
+	student_id: number;
+	se1: "O" | "V" | "G" | null;
+	se2: "O" | "V" | "G" | null;
+	se3: "O" | "V" | "G" | null;
+	se4: "O" | "V" | "G" | null;
+	se5: "O" | "V" | "G" | null;
+	se6: "O" | "V" | "G" | null;
+	se7: "O" | "V" | "G" | null;
+};
+
+const ptaRows = [
+	{ key: "se1", name: "SE1 Sportvaardigheid" },
+	{ key: "se2", name: "SE2 Sportvaardigheid" },
+	{ key: "se3", name: "SE3 Conditieopdracht" },
+	{ key: "se4", name: "SE4 Activiteit begeleiden" },
+	{ key: "se5", name: "SE5 Instructieopdracht" },
+	{ key: "se6", name: "SE6 Conditieopdracht" },
+	{ key: "se7", name: "SE7 Sportvaardigheid" },
+] as const;
+
 const leerjaarPerKlas: Record<string, number> = {
 	B1B: 1,
 	B2B: 2,
@@ -100,6 +121,7 @@ export default async function KlasPage({
 }) {
 	const { klas } = await params;
 	const leerjaar = leerjaarPerKlas[klas.toUpperCase()];
+	const hasPTA = new Set(["BZ4A", "H4A", "H4B", "H5A"]).has(klas.toUpperCase());
 
 	const { data: students } = await supabase
 		.from("students")
@@ -115,6 +137,7 @@ export default async function KlasPage({
 	const acrogymScoresByStudent = new Map<number, AcrogymScore>();
 	const klimmenScoresByStudent = new Map<number, KlimmenScore>();
 	const conditieScoresByStudent = new Map<number, ConditieScore>();
+	const ptaScoresByStudent = new Map<number, PTAScore>();
 
 	if (students && students.length > 0) {
 		const studentIds = students.map((student) => Number(student.id));
@@ -239,6 +262,28 @@ export default async function KlasPage({
 				conditieScoresByStudent.set(studentId, score as ConditieScore);
 			}
 		});
+
+		if (hasPTA) {
+		const { data: ptaScores, error: ptaScoresError } = await supabase
+			.from("pta_scores")
+			.select("student_id, se1, se2, se3, se4, se5, se6, se7")
+			.in("student_id", studentIds)
+			.order("created_at", { ascending: false });
+
+		if (ptaScoresError) {
+			console.error("[KlasPage] pta_scores query failed:", ptaScoresError);
+			throw new Error(`PTA-beoordelingen laden mislukt: ${ptaScoresError.message}`);
+		}
+
+		ptaScores?.forEach((score) => {
+			const typedScore = score as PTAScore;
+			const studentId = Number(typedScore.student_id);
+
+			if (!ptaScoresByStudent.has(studentId)) {
+				ptaScoresByStudent.set(studentId, typedScore);
+			}
+		});
+		}
 	}
 
 	return (
@@ -266,36 +311,48 @@ export default async function KlasPage({
 						Klas {klas}
 					</h1>
 					<div className="mt-5 h-1 w-20 rounded-full bg-[#EF8A00]" />
-					<Link
-						href={`/klassen/${klas}/beoordelen/softbal`}
-						className="mt-8 inline-flex items-center gap-2 rounded-lg bg-[#362665] px-5 py-3 font-semibold text-white shadow-lg shadow-[#362665]/15 transition-colors hover:bg-[#291c4d] focus:outline-none focus:ring-4 focus:ring-[#EF8A00]/40"
-					>
-						Beoordelingsmodus Softbal <span aria-hidden="true">→</span>
-					</Link>
-					<Link
-						href={`/klassen/${klas}/beoordelen/volleybal`}
-						className="ml-3 mt-8 inline-flex items-center gap-2 rounded-lg bg-[#362665] px-5 py-3 font-semibold text-white shadow-lg shadow-[#362665]/15 transition-colors hover:bg-[#291c4d] focus:outline-none focus:ring-4 focus:ring-[#EF8A00]/40"
-					>
-						Beoordelingsmodus Volleybal <span aria-hidden="true">→</span>
-					</Link>
-					<Link
-						href={`/klassen/${klas}/beoordelen/basketbal`}
-						className="ml-3 mt-8 inline-flex items-center gap-2 rounded-lg bg-[#362665] px-5 py-3 font-semibold text-white shadow-lg shadow-[#362665]/15 transition-colors hover:bg-[#291c4d] focus:outline-none focus:ring-4 focus:ring-[#EF8A00]/40"
-					>
-						Beoordelingsmodus Basketbal <span aria-hidden="true">→</span>
-					</Link>
-					<Link
-						href={`/klassen/${klas}/beoordelen/conditie`}
-						className="ml-3 mt-8 inline-flex items-center gap-2 rounded-lg bg-[#362665] px-5 py-3 font-semibold text-white shadow-lg shadow-[#362665]/15 transition-colors hover:bg-[#291c4d] focus:outline-none focus:ring-4 focus:ring-[#EF8A00]/40"
-					>
-						Beoordelingsmodus Conditie <span aria-hidden="true">→</span>
-					</Link>
-					<Link
-						href={`/klassen/${klas}/beoordelen/klimmen`}
-						className="ml-3 mt-8 inline-flex items-center gap-2 rounded-lg bg-[#362665] px-5 py-3 font-semibold text-white shadow-lg shadow-[#362665]/15 transition-colors hover:bg-[#291c4d] focus:outline-none focus:ring-4 focus:ring-[#EF8A00]/40"
-					>
-						Beoordelingsmodus Klimmen <span aria-hidden="true">→</span>
-					</Link>
+					{!hasPTA && (
+						<>
+							<Link
+								href={`/klassen/${klas}/beoordelen/softbal`}
+								className="mt-8 inline-flex items-center gap-2 rounded-lg bg-[#362665] px-5 py-3 font-semibold text-white shadow-lg shadow-[#362665]/15 transition-colors hover:bg-[#291c4d] focus:outline-none focus:ring-4 focus:ring-[#EF8A00]/40"
+							>
+								Beoordelingsmodus Softbal <span aria-hidden="true">→</span>
+							</Link>
+							<Link
+								href={`/klassen/${klas}/beoordelen/volleybal`}
+								className="ml-3 mt-8 inline-flex items-center gap-2 rounded-lg bg-[#362665] px-5 py-3 font-semibold text-white shadow-lg shadow-[#362665]/15 transition-colors hover:bg-[#291c4d] focus:outline-none focus:ring-4 focus:ring-[#EF8A00]/40"
+							>
+								Beoordelingsmodus Volleybal <span aria-hidden="true">→</span>
+							</Link>
+							<Link
+								href={`/klassen/${klas}/beoordelen/basketbal`}
+								className="ml-3 mt-8 inline-flex items-center gap-2 rounded-lg bg-[#362665] px-5 py-3 font-semibold text-white shadow-lg shadow-[#362665]/15 transition-colors hover:bg-[#291c4d] focus:outline-none focus:ring-4 focus:ring-[#EF8A00]/40"
+							>
+								Beoordelingsmodus Basketbal <span aria-hidden="true">→</span>
+							</Link>
+							<Link
+								href={`/klassen/${klas}/beoordelen/conditie`}
+								className="ml-3 mt-8 inline-flex items-center gap-2 rounded-lg bg-[#362665] px-5 py-3 font-semibold text-white shadow-lg shadow-[#362665]/15 transition-colors hover:bg-[#291c4d] focus:outline-none focus:ring-4 focus:ring-[#EF8A00]/40"
+							>
+								Beoordelingsmodus Conditie <span aria-hidden="true">→</span>
+							</Link>
+							<Link
+								href={`/klassen/${klas}/beoordelen/klimmen`}
+								className="ml-3 mt-8 inline-flex items-center gap-2 rounded-lg bg-[#362665] px-5 py-3 font-semibold text-white shadow-lg shadow-[#362665]/15 transition-colors hover:bg-[#291c4d] focus:outline-none focus:ring-4 focus:ring-[#EF8A00]/40"
+							>
+								Beoordelingsmodus Klimmen <span aria-hidden="true">→</span>
+							</Link>
+						</>
+					)}
+					{hasPTA && (
+						<Link
+							href={`/klassen/${klas}/beoordelen/pta`}
+							className="ml-3 mt-8 inline-flex items-center gap-2 rounded-lg bg-[#EF8A00] px-5 py-3 font-semibold text-white shadow-lg shadow-[#EF8A00]/20 transition-colors hover:bg-[#d97800] focus:outline-none focus:ring-4 focus:ring-[#EF8A00]/40"
+						>
+							PTA H4/H5 <span aria-hidden="true">→</span>
+						</Link>
+					)}
 				</header>
 
 				{students && students.length > 0 ? (
@@ -313,6 +370,7 @@ export default async function KlasPage({
 							const acrogymScore = acrogymScoresByStudent.get(studentId);
 							const klimmenScore = klimmenScoresByStudent.get(studentId);
 							const conditieScore = conditieScoresByStudent.get(studentId);
+							const ptaScore = ptaScoresByStudent.get(studentId);
 							const softbalGrade = softbalScore
 								? getGrade([
 										softbalScore.tactiek_veldpartij,
@@ -395,7 +453,15 @@ export default async function KlasPage({
 											{ name: "LO4 Klimmen", grade: loGrades[3] },
 											{ name: "LO5 Conditie", grade: loGrades[4] },
 										];
-								const completedLos = loRows.filter(({ grade }) => grade !== null).length;
+								const displayRows = hasPTA
+									? ptaRows.map(({ key, name }) => ({
+											name,
+											grade: ptaScore?.[key] ?? null,
+										}))
+									: loRows;
+								const completedAssessments = displayRows.filter(
+									({ grade }) => grade !== null,
+								).length;
 
 							return (
 							<Link
@@ -426,9 +492,9 @@ export default async function KlasPage({
 								</p>
 								<div className="mt-4 space-y-2 text-sm font-semibold text-slate-600">
 									<p className="text-[#362665]">
-										{completedLos}/{loRows.length} onderdelen afgerond
+										{completedAssessments}/{displayRows.length} onderdelen afgerond
 									</p>
-									{loRows.map(({ name, grade }) => (
+									{displayRows.map(({ name, grade }) => (
 										<div key={name} className="flex justify-between gap-4">
 											<span>{name}</span>
 											<span className="text-[#362665]">{grade ?? "-"}</span>

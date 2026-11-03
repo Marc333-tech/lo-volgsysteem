@@ -88,6 +88,28 @@ const loOnderdelen = [
   },
 ];
 
+const ptaKlassen = new Set(["BZ4A", "H4A", "H4B", "H5A"]);
+
+const ptaOnderdelen = [
+  { key: "se1", name: "SE1 Sportvaardigheid" },
+  { key: "se2", name: "SE2 Sportvaardigheid" },
+  { key: "se3", name: "SE3 Conditieopdracht" },
+  { key: "se4", name: "SE4 Activiteit begeleiden" },
+  { key: "se5", name: "SE5 Instructieopdracht" },
+  { key: "se6", name: "SE6 Conditieopdracht" },
+  { key: "se7", name: "SE7 Sportvaardigheid" },
+] as const;
+
+type PTAGrade = "O" | "V" | "G" | null;
+type PTAScore = Record<(typeof ptaOnderdelen)[number]["key"], PTAGrade>;
+
+function ptaGradeStyle(grade: PTAGrade) {
+  if (grade === "G") return "bg-green-100 text-green-800";
+  if (grade === "V") return "bg-yellow-100 text-yellow-800";
+  if (grade === "O") return "bg-red-100 text-red-800";
+  return "bg-slate-100 text-slate-500";
+}
+
 export default async function LeerlingPage({
   params,
 }: {
@@ -110,6 +132,83 @@ export default async function LeerlingPage({
   }
 
   const serverSupabase = await createSupabaseServerClient();
+  const klas = String(leerling.klas).toUpperCase();
+
+  if (ptaKlassen.has(klas)) {
+    const { data: ptaScore, error: ptaScoreError } = await supabase
+      .from("pta_scores")
+      .select("se1, se2, se3, se4, se5, se6, se7")
+      .eq("student_id", Number(id))
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (ptaScoreError) {
+      console.error("[LeerlingPage] pta_scores query failed:", ptaScoreError);
+      throw new Error(`PTA-beoordelingen laden mislukt: ${ptaScoreError.message}`);
+    }
+
+    const latestScores = (ptaScore ?? {}) as Partial<PTAScore>;
+    const completedSections = ptaOnderdelen.filter(
+      ({ key }) => latestScores[key] !== null && latestScores[key] !== undefined,
+    ).length;
+    const openSections = ptaOnderdelen.length - completedSections;
+
+    return (
+      <main className="min-h-screen bg-slate-100 p-6 sm:p-10">
+        <div className="mx-auto max-w-4xl">
+          <Link
+            href={`/klassen/${encodeURIComponent(String(leerling.klas))}`}
+            className="mb-6 inline-block text-slate-700 hover:text-slate-900"
+          >
+            ← Terug naar klas
+          </Link>
+
+          <h1 className="mb-6 text-4xl font-bold">
+            {leerling.roepnaam} {leerling.achternaam}
+          </h1>
+
+          <div className="rounded-xl bg-white p-6 shadow">
+            <p>
+              <strong>Stamnummer:</strong> {leerling.stamnummer}
+            </p>
+            <p>
+              <strong>Klas:</strong> {leerling.klas}
+            </p>
+          </div>
+
+          <section className="mt-6 rounded-xl bg-white p-6 shadow">
+            <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+              <h2 className="text-2xl font-bold text-[#362665]">PTA Resultaten</h2>
+              <p className="text-sm font-semibold text-slate-600" aria-live="polite">
+                {completedSections} SE&apos;s ingevuld · {openSections} openstaand
+              </p>
+            </div>
+            <div className="divide-y divide-slate-200">
+              {ptaOnderdelen.map(({ key, name }) => {
+                const grade = latestScores[key] ?? null;
+
+                return (
+                  <div
+                    key={key}
+                    className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0"
+                  >
+                    <span className="font-semibold text-slate-800">{name}</span>
+                    <span
+                      className={`inline-flex min-w-10 justify-center rounded-full px-3 py-1 text-sm font-bold ${ptaGradeStyle(grade)}`}
+                      aria-label={`${name}: ${grade ?? "nog niet beoordeeld"}`}
+                    >
+                      {grade ?? "-"}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        </div>
+      </main>
+    );
+  }
 
   const [
     { data: softbalScore },
