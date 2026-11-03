@@ -22,10 +22,6 @@ function gradeToValue(grade: string) {
   return grade === "G" ? 3 : grade === "V" ? 2 : 1;
 }
 
-function hasResult(value: unknown) {
-  return value !== null && value !== undefined && value !== "";
-}
-
 function GradeBadge({ grade }: { grade: string | null }) {
   const badge =
     grade === "G"
@@ -177,7 +173,7 @@ export default async function LeerlingPage({
 
   const { data: conditieScore } = await supabase
     .from("conditie_scores")
-    .select("inzet, technisch, tactisch, limieten, rsg_run, shuttle_run")
+    .select("inzet, technisch, tactisch")
     .eq("student_id", Number(id))
     .order("created_at", { ascending: false })
     .limit(1)
@@ -282,16 +278,12 @@ export default async function LeerlingPage({
     ? calculateAverage(springenGrades)
     : null;
   const springenGrade = springenAverage === null ? null : getGrade(springenAverage);
-  const lo5Grades = conditieScore
-    ? [
-        conditieScore.inzet,
-        conditieScore.technisch,
-        conditieScore.tactisch,
-        conditieScore.limieten,
-      ].map((score) => gradeToValue(getGrade(Number(score))))
-    : [];
-  const lo5Average = lo5Grades.length
-    ? calculateAverage(lo5Grades)
+  const lo5Average = conditieScore
+    ? calculateAverage([
+        Number(conditieScore.inzet),
+        Number(conditieScore.technisch),
+        Number(conditieScore.tactisch),
+      ])
     : null;
   const lo5Grade = lo5Average === null ? null : getGrade(lo5Average);
   const klimmenGrades = klimmenScore
@@ -330,10 +322,8 @@ export default async function LeerlingPage({
       total: 2,
     },
     "LO5 Conditie": {
-      assessed:
-        Number(hasResult(conditieScore?.rsg_run)) +
-        Number(hasResult(conditieScore?.shuttle_run)),
-      total: 2,
+      assessed: conditieScore ? 3 : 0,
+      total: 3,
     },
   };
   const loResultRows = [

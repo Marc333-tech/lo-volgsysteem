@@ -53,9 +53,6 @@ type ConditieScore = {
 	inzet: number;
 	technisch: number;
 	tactisch: number;
-	limieten: number;
-	rsg_run: number | null;
-	shuttle_run: number | null;
 };
 
 const leerjaarPerKlas: Record<string, number> = {
@@ -172,9 +169,7 @@ export default async function KlasPage({
 					.order("created_at", { ascending: false }),
 				supabase
 					.from("conditie_scores")
-					.select(
-						"student_id, inzet, technisch, tactisch, limieten, rsg_run, shuttle_run",
-					)
+					.select("student_id, inzet, technisch, tactisch")
 					.in("student_id", studentIds)
 					.order("created_at", { ascending: false }),
 			]);
@@ -287,6 +282,12 @@ export default async function KlasPage({
 					>
 						Beoordelingsmodus Basketbal <span aria-hidden="true">→</span>
 					</Link>
+					<Link
+						href={`/klassen/${klas}/beoordelen/conditie`}
+						className="ml-3 mt-8 inline-flex items-center gap-2 rounded-lg bg-[#362665] px-5 py-3 font-semibold text-white shadow-lg shadow-[#362665]/15 transition-colors hover:bg-[#291c4d] focus:outline-none focus:ring-4 focus:ring-[#EF8A00]/40"
+					>
+						Beoordelingsmodus Conditie <span aria-hidden="true">→</span>
+					</Link>
 				</header>
 
 				{students && students.length > 0 ? (
@@ -362,10 +363,11 @@ export default async function KlasPage({
 									: null,
 								conditieScore
 									? getLoGrade([
-											getGrade([conditieScore.inzet]),
-											getGrade([conditieScore.technisch]),
-											getGrade([conditieScore.tactisch]),
-											getGrade([conditieScore.limieten]),
+											getGrade([
+												conditieScore.inzet,
+												conditieScore.technisch,
+												conditieScore.tactisch,
+											]),
 										])
 									: null,
 							];
