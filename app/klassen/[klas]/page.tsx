@@ -166,6 +166,8 @@ export default async function KlasPage({
 					.from("klimmen_scores")
 					.select("student_id, klimmen, zekeren")
 					.in("student_id", studentIds)
+					.not("klimmen", "is", null)
+					.not("zekeren", "is", null)
 					.order("created_at", { ascending: false }),
 				supabase
 					.from("conditie_scores")
@@ -288,6 +290,12 @@ export default async function KlasPage({
 					>
 						Beoordelingsmodus Conditie <span aria-hidden="true">→</span>
 					</Link>
+					<Link
+						href={`/klassen/${klas}/beoordelen/klimmen`}
+						className="ml-3 mt-8 inline-flex items-center gap-2 rounded-lg bg-[#362665] px-5 py-3 font-semibold text-white shadow-lg shadow-[#362665]/15 transition-colors hover:bg-[#291c4d] focus:outline-none focus:ring-4 focus:ring-[#EF8A00]/40"
+					>
+						Beoordelingsmodus Klimmen <span aria-hidden="true">→</span>
+					</Link>
 				</header>
 
 				{students && students.length > 0 ? (
@@ -357,8 +365,10 @@ export default async function KlasPage({
 								null,
 								klimmenScore
 									? getLoGrade([
-											getGrade([klimmenScore.klimmen]),
-											getGrade([klimmenScore.zekeren]),
+											getGrade([
+												klimmenScore.klimmen,
+												klimmenScore.zekeren,
+											]),
 										])
 									: null,
 								conditieScore

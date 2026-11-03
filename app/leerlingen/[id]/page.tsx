@@ -183,6 +183,8 @@ export default async function LeerlingPage({
     .from("klimmen_scores")
     .select("klimmen, zekeren")
     .eq("student_id", Number(id))
+    .not("klimmen", "is", null)
+    .not("zekeren", "is", null)
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -287,15 +289,16 @@ export default async function LeerlingPage({
     : null;
   const lo5Grade = lo5Average === null ? null : getGrade(lo5Average);
   const klimmenGrades = klimmenScore
-    ? [klimmenScore.klimmen, klimmenScore.zekeren].map((score) =>
-        gradeToValue(getGrade(Number(score))),
-      )
+    ? [
+        klimmenScore.klimmen,
+        klimmenScore.zekeren,
+      ].map((score) => gradeToValue(getGrade(Number(score))))
     : [];
   const lo4Average = klimmenGrades.length
     ? calculateAverage(klimmenGrades)
     : null;
   const lo4Grade = lo4Average === null ? null : getGrade(lo4Average);
-  const klimmenGrade = klimmenScore
+  const klimmenScoreGrade = klimmenScore
     ? getGrade(Number(klimmenScore.klimmen))
     : null;
   const zekerenGrade = klimmenScore
@@ -516,7 +519,7 @@ export default async function LeerlingPage({
                           grade={
                             isKlimmen
                               ? onderdeel.name === "Klimmen"
-                                ? klimmenGrade
+                                ? klimmenScoreGrade
                                 : zekerenGrade
                               : score
                                 ? getGrade(average!)

@@ -5,8 +5,9 @@ import { use, useEffect, useState } from "react";
 import { supabase } from "../../../../lib/supabase";
 import { loadLatestKlimmenScore } from "./load-score";
 
-const categorieen = ["Klimmen", "Zekeren"];
+const categorieen = ["Klimmen", "Zekeren"] as const;
 const beoordelingen = [1, 2, 3, 4];
+type Categorie = (typeof categorieen)[number];
 
 type Leerling = {
 	roepnaam: string;
@@ -27,9 +28,10 @@ export default function KlimmenPage({
 	const { id } = use(params);
 	const [leerling, setLeerling] = useState<Leerling | null>(null);
 	const [isLoading, setIsLoading] = useState(true);
-	const [scores, setScores] = useState<Record<string, number | null>>(() =>
-		Object.fromEntries(categorieen.map((categorie) => [categorie, null])),
-	);
+	const [scores, setScores] = useState<Record<Categorie, number | null>>({
+		Klimmen: null,
+		Zekeren: null,
+	});
 	const [saveMessage, setSaveMessage] = useState<string | null>(null);
 	const [isSaving, setIsSaving] = useState(false);
 
@@ -44,51 +46,73 @@ export default function KlimmenPage({
 		setIsSaving(true);
 		setSaveMessage(null);
 
-		const { error } = await supabase.from("klimmen_scores").insert({
-			student_id: Number(id),
-			klimmen: scores.Klimmen,
-			zekeren: scores.Zekeren,
-		});
+		try {
+			const { error } = await supabase.from("klimmen_scores").insert({
+				student_id: Number(id),
+				klimmen: scores.Klimmen,
+				zekeren: scores.Zekeren,
+			});
 
-		setIsSaving(false);
-		setSaveMessage(
-			error
-				? `Opslaan mislukt: ${error.message}`
-				: "Beoordeling opgeslagen.",
-		);
+			if (error) {
+				console.error("[KlimmenPage] insert failed:", error);
+				setSaveMessage(`Opslaan mislukt: ${error.message}`);
+				return;
+			}
+
+			setSaveMessage("Beoordeling opgeslagen.");
+		} catch (error) {
+			console.error("[KlimmenPage] insert request failed:", error);
+			setSaveMessage("Opslaan mislukt door een verbindingsfout.");
+		} finally {
+			setIsSaving(false);
+		}
 	}
 
 	useEffect(() => {
 		let isMounted = true;
 
 		async function loadLeerling() {
-			const [{ data: leerlingData }, scoreData] = await Promise.all([
-				supabase
-					.from("students")
-					.select("roepnaam, achternaam, klas")
-					.eq("id", id)
-					.single(),
-				loadLatestKlimmenScore(Number(id)),
-			]);
-			console.log("KLIMMEN SCORE DATA", scoreData);
+			try {
+				const [{ data: leerlingData, error: leerlingError }, scoreData] =
+					await Promise.all([
+						supabase
+							.from("students")
+							.select("roepnaam, achternaam, klas")
+							.eq("id", id)
+							.single(),
+						loadLatestKlimmenScore(Number(id)),
+					]);
 
-			if (isMounted) {
-				setLeerling(leerlingData);
-
-				if (scoreData) {
-					const savedScores = scoreData as KlimmenScore;
-
-					setScores({
-						Klimmen: savedScores.klimmen,
-						Zekeren: savedScores.zekeren,
-					});
-					console.log("KLIMMEN SCORES STATE", {
-						Klimmen: savedScores.klimmen,
-						Zekeren: savedScores.zekeren,
-					});
+				if (leerlingError) {
+					console.error("[KlimmenPage] student query failed:", leerlingError);
+					throw new Error(`Leerling laden mislukt: ${leerlingError.message}`);
 				}
 
-				setIsLoading(false);
+				if (isMounted) {
+					setLeerling(leerlingData);
+
+					if (scoreData) {
+						const savedScores = scoreData as KlimmenScore;
+
+						setScores({
+							Klimmen: savedScores.klimmen,
+							Zekeren: savedScores.zekeren,
+						});
+					}
+				}
+			} catch (error) {
+				console.error("[KlimmenPage] load request failed:", error);
+				if (isMounted) {
+					setSaveMessage(
+						error instanceof Error
+							? error.message
+							: "Beoordeling laden mislukt door een verbindingsfout.",
+					);
+				}
+			} finally {
+				if (isMounted) {
+					setIsLoading(false);
+				}
 			}
 		}
 
@@ -132,7 +156,7 @@ export default function KlimmenPage({
 							className="flex flex-col gap-3 border-b border-slate-200 pb-4 last:border-b-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between"
 						>
 							<h2 className="text-lg font-semibold text-slate-800">
-								{categorie === "Klimmen" ? "🧗" : "🪢"} {categorie}
+								{categorie === "Zekeren" ? "🪢" : "🧗"} {categorie}
 							</h2>
 
 							<div
