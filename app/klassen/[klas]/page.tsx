@@ -56,6 +56,18 @@ type SpringenScore = {
 	combineren: number;
 };
 
+type AtletiekScore = {
+	student_id: number;
+	lay_out_kijkwijzer: number | null;
+	instructie_onderdeel: number | null;
+	voorbeeld_uitvoering: number | null;
+	differentiatie_naar_niveau: number | null;
+	benoemen_van_fouten: number | null;
+	ondersteunende_graphics: number | null;
+	slow_motion_beelden: number | null;
+	filmen_meerdere_hoeken: number | null;
+};
+
 type PTAScore = {
 	student_id: number;
 	se1: "O" | "V" | "G" | null;
@@ -141,6 +153,7 @@ export default async function KlasPage({
 	const conditieScoresByStudent = new Map<number, ConditieScore>();
 	const ptaScoresByStudent = new Map<number, PTAScore>();
 	const springenScoresByStudent = new Map<number, SpringenScore>();
+	const atletiekScoresByStudent = new Map<number, AtletiekScore>();
 
 	if (students && students.length > 0) {
 		const studentIds = students.map((student) => Number(student.id));
@@ -295,6 +308,28 @@ export default async function KlasPage({
 				}
 			});
 		}
+
+		if (isH3) {
+			const { data: atletiekScores, error: atletiekScoresError } = await supabase
+				.from("atletiek_scores")
+				.select("student_id, lay_out_kijkwijzer, instructie_onderdeel, voorbeeld_uitvoering, differentiatie_naar_niveau, benoemen_van_fouten, ondersteunende_graphics, slow_motion_beelden, filmen_meerdere_hoeken")
+				.in("student_id", studentIds)
+				.order("created_at", { ascending: false });
+
+			if (atletiekScoresError) {
+				console.error("[KlasPage] atletiek_scores query failed:", atletiekScoresError);
+				throw new Error(`Atletiekbeoordelingen laden mislukt: ${atletiekScoresError.message}`);
+			}
+
+			atletiekScores?.forEach((score) => {
+				const typedScore = score as AtletiekScore;
+				const studentId = Number(typedScore.student_id);
+
+				if (!atletiekScoresByStudent.has(studentId)) {
+					atletiekScoresByStudent.set(studentId, typedScore);
+				}
+			});
+		}
 	}
 
 	return (
@@ -362,6 +397,14 @@ export default async function KlasPage({
 							>
 								Beoordelingsmodus Turnen - Springen <span aria-hidden="true">→</span>
 							</Link>
+							{isH3 && (
+								<Link
+									href={`/klassen/${klas}/beoordelen/atletiek`}
+									className="ml-3 mt-8 inline-flex items-center gap-2 rounded-lg bg-[#362665] px-5 py-3 font-semibold text-white shadow-lg shadow-[#362665]/15 transition-colors hover:bg-[#291c4d] focus:outline-none focus:ring-4 focus:ring-[#EF8A00]/40"
+								>
+									Beoordelingsmodus LO3 Atletiek <span aria-hidden="true">→</span>
+								</Link>
+							)}
 						</>
 					)}
 					{hasPTA && (
@@ -388,6 +431,7 @@ export default async function KlasPage({
 							const hockeyScore = hockeyScoresByStudent.get(studentId);
 							const klimmenScore = klimmenScoresByStudent.get(studentId);
 							const conditieScore = conditieScoresByStudent.get(studentId);
+							const atletiekScore = atletiekScoresByStudent.get(studentId);
 							const ptaScore = ptaScoresByStudent.get(studentId);
 							const springenScore = springenScoresByStudent.get(studentId);
 							const softbalGrade = softbalScore
@@ -431,7 +475,33 @@ export default async function KlasPage({
 								springenScore.combineren,
 							])
 						: null;
-							const loGrades = [
+							const atletiekValues = atletiekScore
+								? [
+										atletiekScore.lay_out_kijkwijzer,
+										atletiekScore.instructie_onderdeel,
+										atletiekScore.voorbeeld_uitvoering,
+										atletiekScore.differentiatie_naar_niveau,
+										atletiekScore.benoemen_van_fouten,
+										atletiekScore.ondersteunende_graphics,
+										atletiekScore.slow_motion_beelden,
+										atletiekScore.filmen_meerdere_hoeken,
+								]
+								: [];
+							const completeAtletiekValues = atletiekValues.filter(
+								(score): score is number => score !== null,
+							);
+							const atletiekTotal = completeAtletiekValues.reduce(
+								(total, score) => total + score,
+								0,
+							);
+							const atletiekGrade = completeAtletiekValues.length === 8
+								? atletiekTotal < 60
+									? "O"
+									: atletiekTotal < 80
+										? "V"
+										: "G"
+								: null;
+						const loGrades = [
 							getLoGrade([
 								...(softbalGrade ? [softbalGrade] : []),
 								...(volleybalGrade ? [volleybalGrade] : []),
@@ -440,7 +510,7 @@ export default async function KlasPage({
 						...(isH3 ? [] : hockeyGrade ? [hockeyGrade] : []),
 							]),
 								turnenSpringenGrade,
-								null,
+								atletiekGrade,
 								klimmenScore
 									? getLoGrade([
 											getGrade([
