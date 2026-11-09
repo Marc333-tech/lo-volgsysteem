@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getConditionGrade } from "../../../lib/condition";
 import { supabase } from "../../../lib/supabase";
 import { createSupabaseServerClient } from "../../../lib/supabase/server";
 
@@ -276,7 +277,7 @@ export default async function LeerlingPage({
 
   const { data: conditieScore } = await supabase
     .from("conditie_scores")
-    .select("inzet, technisch, tactisch")
+    .select("inzet, technisch, tactisch, eindniveau")
     .eq("student_id", Number(id))
     .order("created_at", { ascending: false })
     .limit(1)
@@ -408,13 +409,19 @@ export default async function LeerlingPage({
         : "G"
     : null;
   const lo5Average = conditieScore
-    ? calculateAverage([
-        Number(conditieScore.inzet),
-        Number(conditieScore.technisch),
-        Number(conditieScore.tactisch),
-      ])
+    ? conditieScore.eindniveau !== null
+      ? Number(conditieScore.eindniveau)
+      : calculateAverage([
+          Number(conditieScore.inzet),
+          Number(conditieScore.technisch),
+          Number(conditieScore.tactisch),
+        ])
     : null;
-  const lo5Grade = lo5Average === null ? null : getGrade(lo5Average);
+  const lo5Grade = lo5Average === null
+    ? null
+    : conditieScore?.eindniveau !== null && conditieScore?.eindniveau !== undefined
+      ? getConditionGrade(lo5Average)
+      : getGrade(lo5Average);
   const klimmenGrades = klimmenScore
     ? [
         klimmenScore.klimmen,

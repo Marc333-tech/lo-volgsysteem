@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { supabase } from "../../../../../lib/supabase";
+import { parseRsgRunTime, parseShuttleRunTrap } from "../../../../../lib/condition";
 import ConditieAssessment from "./ConditieAssessment";
 
 export const dynamic = "force-dynamic";
@@ -14,9 +15,18 @@ type Student = {
 
 type ConditieScore = {
 	student_id: number;
-	inzet: number;
-	technisch: number;
-	tactisch: number;
+	inzet: number | null;
+	shuttle_run: string | number | null;
+	rsg_run: string | null;
+	rsg_run_minutes: number | null;
+	rsg_run_seconds: number | null;
+};
+
+type InitialScore = {
+	inzet: number | null;
+	shuttleRunTrap: number | null;
+	rsgRunMinutes: number | null;
+	rsgRunSeconds: number | null;
 };
 
 export default async function ConditieAssessmentPage({
@@ -40,7 +50,7 @@ export default async function ConditieAssessmentPage({
 	const scoresResult = studentIds.length
 		? await supabase
 			.from("conditie_scores")
-			.select("student_id, inzet, technisch, tactisch")
+			.select("student_id, inzet, shuttle_run, rsg_run, rsg_run_minutes, rsg_run_seconds, shuttle_run_level, limieten_niveau, eindniveau")
 			.in("student_id", studentIds)
 			.order("created_at", { ascending: false })
 		: { data: [], error: null };
@@ -62,12 +72,22 @@ export default async function ConditieAssessmentPage({
 	});
 
 	const initialScores = Object.fromEntries(
-		[...latestScores.entries()].map(([studentId, score]) => [String(studentId), {
-			inzet: score.inzet,
-			technisch: score.technisch,
-			tactisch: score.tactisch,
-		}]),
-	);
+		[...latestScores.entries()].map(([studentId, score]) => {
+			const legacyRunTime = parseRsgRunTime(score.rsg_run);
+			const initialScore: InitialScore = {
+				inzet: score.inzet === null ? null : Number(score.inzet),
+				shuttleRunTrap: parseShuttleRunTrap(score.shuttle_run),
+				rsgRunMinutes: score.rsg_run_minutes === null
+					? legacyRunTime?.minutes ?? null
+					: Number(score.rsg_run_minutes),
+				rsgRunSeconds: score.rsg_run_seconds === null
+					? legacyRunTime?.seconds ?? null
+					: Number(score.rsg_run_seconds),
+			};
+
+			return [String(studentId), initialScore];
+		}),
+	) as Record<string, InitialScore>;
 
 	return (
 		<main className="min-h-screen bg-[#f5f3f8] px-4 py-8 sm:px-8 sm:py-12">
@@ -97,8 +117,8 @@ export default async function ConditieAssessmentPage({
 							</h1>
 						</div>
 						<div className="rounded-xl bg-white px-4 py-3 text-sm text-slate-600 shadow-sm">
-							<p className="font-semibold text-[#362665]">3 beoordelingscriteria</p>
-							<p>Geef per criterium een score van 1 t/m 4</p>
+							<p className="font-semibold text-[#362665]">Inzet telt voor 50%</p>
+							<p>Shuttle Run en RSG Run bepalen samen de andere 50%</p>
 						</div>
 					</div>
 					<div className="mt-5 h-1 w-20 rounded-full bg-[#EF8A00]" />

@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { getConditionGrade } from "../../../lib/condition";
 import { supabase } from "../../../lib/supabase";
 import { createSupabaseServerClient } from "../../../lib/supabase/server";
 
@@ -43,9 +44,10 @@ type KlimmenScore = {
 
 type ConditieScore = {
 	student_id: number;
-	inzet: number;
-	technisch: number;
-	tactisch: number;
+	inzet: number | null;
+	technisch: number | null;
+	tactisch: number | null;
+	eindniveau: number | null;
 };
 
 type SpringenScore = {
@@ -204,7 +206,7 @@ export default async function KlasPage({
 					.order("created_at", { ascending: false }),
 				supabase
 					.from("conditie_scores")
-					.select("student_id, inzet, technisch, tactisch")
+					.select("student_id, inzet, technisch, tactisch, eindniveau")
 					.in("student_id", studentIds)
 					.order("created_at", { ascending: false }),
 			]);
@@ -521,11 +523,13 @@ export default async function KlasPage({
 									: null,
 								conditieScore
 									? getLoGrade([
-											getGrade([
-												conditieScore.inzet,
-												conditieScore.technisch,
-												conditieScore.tactisch,
-											]),
+											conditieScore.eindniveau !== null
+												? getConditionGrade(Number(conditieScore.eindniveau)) ?? "O"
+												: getGrade([
+														Number(conditieScore.inzet),
+														Number(conditieScore.technisch),
+														Number(conditieScore.tactisch),
+													]),
 										])
 									: null,
 							];
