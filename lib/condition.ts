@@ -69,21 +69,43 @@ export function parseRsgRunTime(value: unknown): { minutes: number; seconds: num
 		: null;
 }
 
+export function hasConditionInput(input: ConditionInputs): boolean {
+	return Object.values(input).some((value) => value !== null);
+}
+
+export function isValidConditionInput(input: ConditionInputs): boolean {
+	return hasConditionInput(input)
+		&& (input.inzet === null || (
+			Number.isInteger(input.inzet)
+			&& input.inzet >= 1
+			&& input.inzet <= 4
+		))
+		&& (input.shuttleRunLine === null
+			|| input.shuttleRunLine === "Geel"
+			|| input.shuttleRunLine === "Blauw")
+		&& (input.shuttleRunTrap === null
+			|| (Number.isFinite(input.shuttleRunTrap) && input.shuttleRunTrap >= 1))
+		&& (input.shuttleRunLine === null
+			|| input.shuttleRunTrap === null
+			|| getShuttleRunGrade(input.shuttleRunLine, input.shuttleRunTrap) !== null)
+		&& (input.rsgRunMinutes === null || (
+			Number.isInteger(input.rsgRunMinutes)
+			&& input.rsgRunMinutes >= 0
+		))
+		&& (input.rsgRunSeconds === null || (
+			Number.isInteger(input.rsgRunSeconds)
+			&& input.rsgRunSeconds >= 0
+			&& input.rsgRunSeconds <= 59
+		));
+}
+
 export function isCompleteConditionInput(input: ConditionInputs): input is CompleteConditionInputs {
-	return Number.isInteger(input.inzet)
+	return isValidConditionInput(input)
 		&& input.inzet !== null
-		&& input.inzet >= 1
-		&& input.inzet <= 4
 		&& input.shuttleRunLine !== null
 		&& input.shuttleRunTrap !== null
-		&& getShuttleRunGrade(input.shuttleRunLine, input.shuttleRunTrap) !== null
 		&& input.rsgRunMinutes !== null
-		&& Number.isInteger(input.rsgRunMinutes)
-		&& input.rsgRunMinutes >= 0
-		&& input.rsgRunSeconds !== null
-		&& Number.isInteger(input.rsgRunSeconds)
-		&& input.rsgRunSeconds >= 0
-		&& input.rsgRunSeconds <= 59;
+		&& input.rsgRunSeconds !== null;
 }
 
 export function calculateConditionResult(

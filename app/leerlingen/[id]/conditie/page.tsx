@@ -6,7 +6,9 @@ import {
 	calculateConditionResult,
 	getConditionGrade,
 	getShuttleRunGrade,
+	hasConditionInput,
 	isCompleteConditionInput,
+	isValidConditionInput,
 	parseShuttleRunLine,
 	parseRsgRunTime,
 	parseShuttleRunTrap,
@@ -121,8 +123,13 @@ export default function ConditiePage({
 	}
 
 	async function handleSave() {
-		if (!isCompleteConditionInput(score)) {
-			setSaveMessage("Vul Inzet, een Shuttle Run-lijn en trap en beide RSG-tijdvelden volledig in.");
+		if (!hasConditionInput(score)) {
+			setSaveMessage("Vul minimaal één veld in voordat je opslaat.");
+			return;
+		}
+
+		if (!isValidConditionInput(score)) {
+			setSaveMessage("Controleer de ingevulde beoordelingen: gebruik geldige waarden voor alle ingevulde velden.");
 			return;
 		}
 
@@ -130,24 +137,28 @@ export default function ConditiePage({
 		setSaveMessage(null);
 
 		try {
-			const { shuttleRunLevel, limietenNiveau, eindniveau } = calculateConditionResult(
-				score.inzet!,
-				score.shuttleRunLine!,
-				score.shuttleRunTrap!,
-				score.rsgRunMinutes!,
-				score.rsgRunSeconds!,
-			);
+			const result = isCompleteConditionInput(score)
+				? calculateConditionResult(
+					score.inzet,
+					score.shuttleRunLine,
+					score.shuttleRunTrap,
+					score.rsgRunMinutes,
+					score.rsgRunSeconds,
+				)
+				: null;
 			const { error } = await supabase.from("conditie_scores").insert({
 				student_id: Number(id),
 				inzet: score.inzet,
 				shuttle_run_line: score.shuttleRunLine,
-				shuttle_run: String(score.shuttleRunTrap),
-				shuttle_run_level: shuttleRunLevel,
-				rsg_run: `${score.rsgRunMinutes}:${String(score.rsgRunSeconds).padStart(2, "0")}`,
+				shuttle_run: score.shuttleRunTrap === null ? null : String(score.shuttleRunTrap),
+				shuttle_run_level: result?.shuttleRunLevel ?? null,
+				rsg_run: score.rsgRunMinutes === null || score.rsgRunSeconds === null
+					? null
+					: `${score.rsgRunMinutes}:${String(score.rsgRunSeconds).padStart(2, "0")}`,
 				rsg_run_minutes: score.rsgRunMinutes,
 				rsg_run_seconds: score.rsgRunSeconds,
-				limieten_niveau: limietenNiveau,
-				eindniveau,
+				limieten_niveau: result?.limietenNiveau ?? null,
+				eindniveau: result?.eindniveau ?? null,
 			});
 
 			if (error) {
@@ -156,7 +167,11 @@ export default function ConditiePage({
 				return;
 			}
 
-			setSaveMessage(`Beoordeling opgeslagen · resultaat ${getConditionGrade(eindniveau)} (${eindniveau.toFixed(2)}).`);
+			setSaveMessage(
+				result
+					? `Beoordeling opgeslagen · resultaat ${getConditionGrade(result.eindniveau)} (${result.eindniveau.toFixed(2)}).`
+					: "Gedeeltelijke beoordeling opgeslagen.",
+			);
 		} catch (error) {
 			console.error("[ConditiePage] unexpected insert failure:", error);
 			setSaveMessage("Opslaan mislukt door een onverwachte fout.");

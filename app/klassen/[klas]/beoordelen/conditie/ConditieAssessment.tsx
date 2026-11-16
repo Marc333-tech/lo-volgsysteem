@@ -7,7 +7,9 @@ import {
 	calculateConditionResult,
 	getConditionGrade,
 	getShuttleRunGrade,
+	hasConditionInput,
 	isCompleteConditionInput,
+	isValidConditionInput,
 	type ConditionInputs,
 	parseShuttleRunLine,
 } from "../../../../../lib/condition";
@@ -57,7 +59,7 @@ export default function ConditieAssessment({ klas, students, initialScores }: Pr
 				Number(student.id),
 				{
 					...emptyScore(),
-					...initialScores[String(student.id)],
+					...(initialScores[String(student.id)] ?? {}),
 				},
 			]),
 		) as Record<number, Score>,
@@ -69,6 +71,13 @@ export default function ConditieAssessment({ klas, students, initialScores }: Pr
 		isCompleteConditionInput(scores[Number(student.id)] ?? emptyScore()),
 	);
 	const completedStudents = completedStudentList.length;
+	const studentsWithScores = students.filter((student) =>
+		hasConditionInput(scores[Number(student.id)] ?? emptyScore()),
+	);
+	const assessedFields = students.reduce((total, student) => {
+		const studentScores = scores[Number(student.id)] ?? emptyScore();
+		return total + Object.values(studentScores).filter((value) => value !== null).length;
+	}, 0);
 
 	function updateScore(studentId: number, changes: Partial<Score>) {
 		setScores((currentScores) => ({
@@ -79,8 +88,15 @@ export default function ConditieAssessment({ klas, students, initialScores }: Pr
 	}
 
 	async function saveAll() {
-		if (completedStudentList.length === 0) {
-			setSaveMessage("Vul voor minimaal één leerling Inzet, een Shuttle Run-lijn en trap en de volledige RSG-tijd in.");
+		if (studentsWithScores.length === 0) {
+			setSaveMessage("Vul minimaal één veld in voor ten minste één leerling.");
+			return;
+		}
+
+		if (studentsWithScores.some((student) =>
+			!isValidConditionInput(scores[Number(student.id)] ?? emptyScore()),
+		)) {
+			setSaveMessage("Controleer de ingevulde beoordelingen: gebruik geldige waarden voor alle ingevulde velden.");
 			return;
 		}
 
@@ -88,27 +104,31 @@ export default function ConditieAssessment({ klas, students, initialScores }: Pr
 		setSaveMessage(null);
 
 		try {
-			const payload = completedStudentList.map((student) => {
+			const payload = studentsWithScores.map((student) => {
 				const score = scores[Number(student.id)];
-				const { shuttleRunLevel, limietenNiveau, eindniveau } = calculateConditionResult(
-					score.inzet!,
-					score.shuttleRunLine!,
-					score.shuttleRunTrap!,
-					score.rsgRunMinutes!,
-					score.rsgRunSeconds!,
-				);
+				const result = isCompleteConditionInput(score)
+					? calculateConditionResult(
+						score.inzet,
+						score.shuttleRunLine,
+						score.shuttleRunTrap,
+						score.rsgRunMinutes,
+						score.rsgRunSeconds,
+					)
+					: null;
 
 				return {
 					student_id: Number(student.id),
 					inzet: score.inzet,
 					shuttle_run_line: score.shuttleRunLine,
-					shuttle_run: String(score.shuttleRunTrap),
-					shuttle_run_level: shuttleRunLevel,
-					rsg_run: `${score.rsgRunMinutes}:${String(score.rsgRunSeconds).padStart(2, "0")}`,
+					shuttle_run: score.shuttleRunTrap === null ? null : String(score.shuttleRunTrap),
+					shuttle_run_level: result?.shuttleRunLevel ?? null,
+					rsg_run: score.rsgRunMinutes === null || score.rsgRunSeconds === null
+						? null
+						: `${score.rsgRunMinutes}:${String(score.rsgRunSeconds).padStart(2, "0")}`,
 					rsg_run_minutes: score.rsgRunMinutes,
 					rsg_run_seconds: score.rsgRunSeconds,
-					limieten_niveau: limietenNiveau,
-					eindniveau,
+					limieten_niveau: result?.limietenNiveau ?? null,
+					eindniveau: result?.eindniveau ?? null,
 				};
 			});
 			const { error } = await supabase.from("conditie_scores").insert(payload);
@@ -119,7 +139,7 @@ export default function ConditieAssessment({ klas, students, initialScores }: Pr
 				return;
 			}
 
-			setSaveMessage(`${completedStudentList.length} beoordeling${completedStudentList.length === 1 ? "" : "en"} opgeslagen.`);
+			setSaveMessage(`${studentsWithScores.length} beoordeling${studentsWithScores.length === 1 ? "" : "en"} opgeslagen.`);
 		} catch (error) {
 			console.error("[ConditieAssessment] unexpected insert failure:", error);
 			setSaveMessage("Opslaan mislukt door een onverwachte fout.");
@@ -135,6 +155,9 @@ export default function ConditieAssessment({ klas, students, initialScores }: Pr
 					<p className="text-lg font-bold text-[#362665]">Voortgang klas</p>
 					<p className="text-sm text-slate-600">
 						{completedStudents} van {students.length} leerlingen volledig beoordeeld
+					</p>
+					<p className="text-sm text-slate-600">
+						{assessedFields} van {students.length * Object.keys(emptyScore()).length} velden ingevuld
 					</p>
 				</div>
 				<button
@@ -160,6 +183,7 @@ export default function ConditieAssessment({ klas, students, initialScores }: Pr
 					{students.map((student) => {
 						const studentScores = scores[Number(student.id)] ?? emptyScore();
 						const isComplete = completedStudentList.includes(student);
+						const filledFields = Object.values(studentScores).filter((value) => value !== null).length;
 						const result = isComplete
 							? calculateConditionResult(
 								studentScores.inzet!,
@@ -183,6 +207,7 @@ export default function ConditieAssessment({ klas, students, initialScores }: Pr
 											{student.roepnaam} {student.achternaam}
 										</Link>
 										<p className="mt-1 text-sm text-slate-500">Stamnummer {student.stamnummer}</p>
+										<p className="mt-1 text-xs text-slate-500">{filledFields}/5 velden ingevuld</p>
 									</div>
 									<div>
 										<p className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500 lg:hidden">Inzet</p>
