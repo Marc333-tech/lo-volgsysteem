@@ -1,7 +1,12 @@
 import Image from "next/image";
 import Link from "next/link";
 import { supabase } from "../../../../../lib/supabase";
-import { parseRsgRunTime, parseShuttleRunTrap } from "../../../../../lib/condition";
+import {
+	parseRsgRunTime,
+	parseShuttleRunLine,
+	parseShuttleRunTrap,
+	type ShuttleRunLine,
+} from "../../../../../lib/condition";
 import ConditieAssessment from "./ConditieAssessment";
 
 export const dynamic = "force-dynamic";
@@ -16,6 +21,7 @@ type Student = {
 type ConditieScore = {
 	student_id: number;
 	inzet: number | null;
+	shuttle_run_line: string | null;
 	shuttle_run: string | number | null;
 	rsg_run: string | null;
 	rsg_run_minutes: number | null;
@@ -24,6 +30,7 @@ type ConditieScore = {
 
 type InitialScore = {
 	inzet: number | null;
+	shuttleRunLine: ShuttleRunLine | null;
 	shuttleRunTrap: number | null;
 	rsgRunMinutes: number | null;
 	rsgRunSeconds: number | null;
@@ -50,7 +57,7 @@ export default async function ConditieAssessmentPage({
 	const scoresResult = studentIds.length
 		? await supabase
 			.from("conditie_scores")
-			.select("student_id, inzet, shuttle_run, rsg_run, rsg_run_minutes, rsg_run_seconds, shuttle_run_level, limieten_niveau, eindniveau")
+			.select("student_id, inzet, shuttle_run_line, shuttle_run, rsg_run, rsg_run_minutes, rsg_run_seconds, shuttle_run_level, limieten_niveau, eindniveau")
 			.in("student_id", studentIds)
 			.order("created_at", { ascending: false })
 		: { data: [], error: null };
@@ -76,6 +83,7 @@ export default async function ConditieAssessmentPage({
 			const legacyRunTime = parseRsgRunTime(score.rsg_run);
 			const initialScore: InitialScore = {
 				inzet: score.inzet === null ? null : Number(score.inzet),
+				shuttleRunLine: parseShuttleRunLine(score.shuttle_run_line),
 				shuttleRunTrap: parseShuttleRunTrap(score.shuttle_run),
 				rsgRunMinutes: score.rsg_run_minutes === null
 					? legacyRunTime?.minutes ?? null

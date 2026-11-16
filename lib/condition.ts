@@ -1,5 +1,9 @@
+export type ShuttleRunLine = "Geel" | "Blauw";
+export type ShuttleRunGrade = "O" | "V" | "G";
+
 export type ConditionInputs = {
 	inzet: number | null;
+	shuttleRunLine: ShuttleRunLine | null;
 	shuttleRunTrap: number | null;
 	rsgRunMinutes: number | null;
 	rsgRunSeconds: number | null;
@@ -7,24 +11,49 @@ export type ConditionInputs = {
 
 type CompleteConditionInputs = {
 	inzet: number;
+	shuttleRunLine: ShuttleRunLine;
 	shuttleRunTrap: number;
 	rsgRunMinutes: number;
 	rsgRunSeconds: number;
 };
 
 export type ConditionResult = {
+	shuttleRunGrade: ShuttleRunGrade;
 	shuttleRunLevel: number;
 	rsgRunLevel: number;
 	limietenNiveau: number;
 	eindniveau: number;
 };
 
+export function parseShuttleRunLine(value: unknown): ShuttleRunLine | null {
+	return value === "Geel" || value === "Blauw" ? value : null;
+}
+
 export function parseShuttleRunTrap(value: unknown): number | null {
 	if (typeof value !== "string" && typeof value !== "number") return null;
 	if (typeof value === "string" && value.trim() === "") return null;
 
 	const trap = Number(value);
-	return Number.isFinite(trap) && trap > 0 ? trap : null;
+	return Number.isFinite(trap) && trap >= 1 ? trap : null;
+}
+
+export function getShuttleRunGrade(
+	line: ShuttleRunLine | null,
+	trap: number | null,
+): ShuttleRunGrade | null {
+	if (line === null || trap === null || !Number.isFinite(trap) || trap < 1) return null;
+
+	if (line === "Geel") {
+		if (trap <= 5) return "O";
+		if (trap >= 6 && trap <= 7.5) return "V";
+		if (trap >= 8) return "G";
+		return null;
+	}
+
+	if (trap <= 7) return "O";
+	if (trap >= 8 && trap <= 9.5) return "V";
+	if (trap >= 10) return "G";
+	return null;
 }
 
 export function parseRsgRunTime(value: unknown): { minutes: number; seconds: number } | null {
@@ -45,9 +74,9 @@ export function isCompleteConditionInput(input: ConditionInputs): input is Compl
 		&& input.inzet !== null
 		&& input.inzet >= 1
 		&& input.inzet <= 4
+		&& input.shuttleRunLine !== null
 		&& input.shuttleRunTrap !== null
-		&& input.shuttleRunTrap > 0
-		&& Number.isFinite(input.shuttleRunTrap)
+		&& getShuttleRunGrade(input.shuttleRunLine, input.shuttleRunTrap) !== null
 		&& input.rsgRunMinutes !== null
 		&& Number.isInteger(input.rsgRunMinutes)
 		&& input.rsgRunMinutes >= 0
@@ -59,17 +88,17 @@ export function isCompleteConditionInput(input: ConditionInputs): input is Compl
 
 export function calculateConditionResult(
 	inzet: number,
+	shuttleRunLine: ShuttleRunLine,
 	shuttleRunTrap: number,
 	rsgRunMinutes: number,
 	rsgRunSeconds: number,
 ): ConditionResult {
-	const shuttleRunLevel = shuttleRunTrap <= 5
-		? 1
-		: shuttleRunTrap < 8
-			? 2
-			: shuttleRunTrap < 10
-				? 3
-				: 4;
+	const shuttleRunGrade = getShuttleRunGrade(shuttleRunLine, shuttleRunTrap);
+	if (shuttleRunGrade === null) {
+		throw new RangeError("Ongeldige Shuttle Run lijn of trap.");
+	}
+
+	const shuttleRunLevel = shuttleRunGrade === "O" ? 1 : shuttleRunGrade === "V" ? 2 : 3;
 
 	const rsgRunDuration = rsgRunMinutes * 60 + rsgRunSeconds;
 	const rsgRunLevel = rsgRunDuration >= 45 * 60
@@ -82,6 +111,7 @@ export function calculateConditionResult(
 	const limietenNiveau = (shuttleRunLevel + rsgRunLevel) / 2;
 
 	return {
+		shuttleRunGrade,
 		shuttleRunLevel,
 		rsgRunLevel,
 		limietenNiveau,

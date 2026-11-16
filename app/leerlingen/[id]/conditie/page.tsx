@@ -5,7 +5,9 @@ import { use, useEffect, useState } from "react";
 import {
 	calculateConditionResult,
 	getConditionGrade,
+	getShuttleRunGrade,
 	isCompleteConditionInput,
+	parseShuttleRunLine,
 	parseRsgRunTime,
 	parseShuttleRunTrap,
 	type ConditionInputs,
@@ -22,6 +24,7 @@ type ScoreInput = ConditionInputs;
 
 type ConditieRecord = {
 	inzet: number | null;
+	shuttle_run_line: string | null;
 	rsg_run: string | null;
 	shuttle_run: string | number | null;
 	rsg_run_minutes: number | null;
@@ -30,6 +33,7 @@ type ConditieRecord = {
 
 const emptyScore: ScoreInput = {
 	inzet: null,
+	shuttleRunLine: null,
 	shuttleRunTrap: null,
 	rsgRunMinutes: null,
 	rsgRunSeconds: null,
@@ -66,7 +70,7 @@ export default function ConditiePage({
 					.single(),
 				supabase
 					.from("conditie_scores")
-					.select("inzet, rsg_run, shuttle_run, rsg_run_minutes, rsg_run_seconds")
+					.select("inzet, shuttle_run_line, rsg_run, shuttle_run, rsg_run_minutes, rsg_run_seconds")
 					.eq("student_id", Number(id))
 					.order("created_at", { ascending: false })
 					.limit(1)
@@ -90,6 +94,7 @@ export default function ConditiePage({
 				const legacyRunTime = parseRsgRunTime(savedScore.rsg_run);
 				setScore({
 					inzet: savedScore.inzet === null ? null : Number(savedScore.inzet),
+					shuttleRunLine: parseShuttleRunLine(savedScore.shuttle_run_line),
 					shuttleRunTrap: parseShuttleRunTrap(savedScore.shuttle_run),
 					rsgRunMinutes: savedScore.rsg_run_minutes === null
 						? legacyRunTime?.minutes ?? null
@@ -117,7 +122,7 @@ export default function ConditiePage({
 
 	async function handleSave() {
 		if (!isCompleteConditionInput(score)) {
-			setSaveMessage("Vul Inzet, Shuttle Run en beide RSG-tijdvelden volledig in.");
+			setSaveMessage("Vul Inzet, een Shuttle Run-lijn en trap en beide RSG-tijdvelden volledig in.");
 			return;
 		}
 
@@ -127,6 +132,7 @@ export default function ConditiePage({
 		try {
 			const { shuttleRunLevel, limietenNiveau, eindniveau } = calculateConditionResult(
 				score.inzet!,
+				score.shuttleRunLine!,
 				score.shuttleRunTrap!,
 				score.rsgRunMinutes!,
 				score.rsgRunSeconds!,
@@ -134,6 +140,7 @@ export default function ConditiePage({
 			const { error } = await supabase.from("conditie_scores").insert({
 				student_id: Number(id),
 				inzet: score.inzet,
+				shuttle_run_line: score.shuttleRunLine,
 				shuttle_run: String(score.shuttleRunTrap),
 				shuttle_run_level: shuttleRunLevel,
 				rsg_run: `${score.rsgRunMinutes}:${String(score.rsgRunSeconds).padStart(2, "0")}`,
@@ -161,6 +168,7 @@ export default function ConditiePage({
 	const result = isCompleteConditionInput(score)
 		? calculateConditionResult(
 			score.inzet!,
+			score.shuttleRunLine!,
 			score.shuttleRunTrap!,
 			score.rsgRunMinutes!,
 			score.rsgRunSeconds!,
@@ -217,10 +225,29 @@ export default function ConditiePage({
 
 					<div className="grid gap-5 border-t border-slate-200 pt-5 sm:grid-cols-2">
 						<label className="text-sm font-semibold text-slate-800">
+							Shuttle Run · lijn
+							<select
+								value={score.shuttleRunLine ?? ""}
+								onChange={(event) => updateScore({
+									shuttleRunLine: parseShuttleRunLine(event.currentTarget.value),
+								})}
+								className="mt-2 block w-full rounded-lg border border-slate-300 px-3 py-3 font-normal text-slate-800"
+							>
+								<option value="">Kies een lijn</option>
+								<option value="Geel">Geel</option>
+								<option value="Blauw">Blauw</option>
+							</select>
+							{score.shuttleRunLine && score.shuttleRunTrap !== null && (
+								<span className="mt-1 block text-xs font-normal text-slate-600">
+									Shuttle {getShuttleRunGrade(score.shuttleRunLine, score.shuttleRunTrap) ?? "trap ongeldig"}
+								</span>
+							)}
+						</label>
+						<label className="text-sm font-semibold text-slate-800">
 							Shuttle Run · trap
 							<input
 								type="number"
-								min="0"
+								min="1"
 								step="any"
 								value={score.shuttleRunTrap ?? ""}
 								onChange={(event) => updateScore({ shuttleRunTrap: getInputNumber(event.currentTarget.value) })}
@@ -260,7 +287,7 @@ export default function ConditiePage({
 
 					{result && (
 						<div className="rounded-lg bg-slate-100 p-4 text-sm text-slate-700" aria-live="polite">
-							<p>Shuttle Niveau {result.shuttleRunLevel} · RSG Niveau {result.rsgRunLevel}</p>
+							<p>Shuttle {result.shuttleRunGrade} · Niveau {result.shuttleRunLevel} · RSG Niveau {result.rsgRunLevel}</p>
 							<p>LimietenNiveau {result.limietenNiveau.toFixed(2)} · EindNiveau {result.eindniveau.toFixed(2)}</p>
 							<p className="font-bold">Resultaat {getConditionGrade(result.eindniveau)}</p>
 						</div>

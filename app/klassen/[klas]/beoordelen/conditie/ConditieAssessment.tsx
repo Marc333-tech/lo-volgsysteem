@@ -6,8 +6,10 @@ import { supabase } from "../../../../../lib/supabase";
 import {
 	calculateConditionResult,
 	getConditionGrade,
+	getShuttleRunGrade,
 	isCompleteConditionInput,
 	type ConditionInputs,
+	parseShuttleRunLine,
 } from "../../../../../lib/condition";
 
 type Score = ConditionInputs;
@@ -28,6 +30,7 @@ type Props = {
 function emptyScore(): Score {
 	return {
 		inzet: null,
+		shuttleRunLine: null,
 		shuttleRunTrap: null,
 		rsgRunMinutes: null,
 		rsgRunSeconds: null,
@@ -77,7 +80,7 @@ export default function ConditieAssessment({ klas, students, initialScores }: Pr
 
 	async function saveAll() {
 		if (completedStudentList.length === 0) {
-			setSaveMessage("Vul voor minimaal één leerling Inzet, Shuttle Run en de volledige RSG-tijd in.");
+			setSaveMessage("Vul voor minimaal één leerling Inzet, een Shuttle Run-lijn en trap en de volledige RSG-tijd in.");
 			return;
 		}
 
@@ -89,6 +92,7 @@ export default function ConditieAssessment({ klas, students, initialScores }: Pr
 				const score = scores[Number(student.id)];
 				const { shuttleRunLevel, limietenNiveau, eindniveau } = calculateConditionResult(
 					score.inzet!,
+					score.shuttleRunLine!,
 					score.shuttleRunTrap!,
 					score.rsgRunMinutes!,
 					score.rsgRunSeconds!,
@@ -97,6 +101,7 @@ export default function ConditieAssessment({ klas, students, initialScores }: Pr
 				return {
 					student_id: Number(student.id),
 					inzet: score.inzet,
+					shuttle_run_line: score.shuttleRunLine,
 					shuttle_run: String(score.shuttleRunTrap),
 					shuttle_run_level: shuttleRunLevel,
 					rsg_run: `${score.rsgRunMinutes}:${String(score.rsgRunSeconds).padStart(2, "0")}`,
@@ -158,12 +163,17 @@ export default function ConditieAssessment({ klas, students, initialScores }: Pr
 						const result = isComplete
 							? calculateConditionResult(
 								studentScores.inzet!,
+								studentScores.shuttleRunLine!,
 								studentScores.shuttleRunTrap!,
 								studentScores.rsgRunMinutes!,
 								studentScores.rsgRunSeconds!,
 							)
 							: null;
 						const grade = getConditionGrade(result?.eindniveau ?? null);
+						const shuttleGrade = getShuttleRunGrade(
+							studentScores.shuttleRunLine,
+							studentScores.shuttleRunTrap,
+						);
 
 						return (
 							<article key={student.id} className="rounded-2xl bg-white p-5 shadow-lg shadow-[#362665]/10">
@@ -191,10 +201,24 @@ export default function ConditieAssessment({ klas, students, initialScores }: Pr
 										</div>
 									</div>
 									<label className="text-sm font-semibold text-slate-700">
-										<span className="mb-2 block text-xs font-bold uppercase tracking-wide text-slate-500 lg:hidden">Shuttle Run · trap</span>
+										<span className="mb-2 block text-xs font-bold uppercase tracking-wide text-slate-500 lg:hidden">Shuttle Run</span>
+										<span className="mb-1 block text-xs text-slate-600">Lijn</span>
+										<select
+											value={studentScores.shuttleRunLine ?? ""}
+											onChange={(event) => updateScore(Number(student.id), {
+												shuttleRunLine: parseShuttleRunLine(event.currentTarget.value),
+											})}
+											aria-label={`Shuttle Run lijn voor ${student.roepnaam} ${student.achternaam}`}
+											className="mb-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 text-slate-800"
+										>
+											<option value="">Kies een lijn</option>
+											<option value="Geel">Geel</option>
+											<option value="Blauw">Blauw</option>
+										</select>
+										<span className="mb-1 block text-xs text-slate-600">Trap</span>
 										<input
 											type="number"
-											min="0"
+											min="1"
 											step="any"
 											value={studentScores.shuttleRunTrap ?? ""}
 											onChange={(event) => updateScore(Number(student.id), {
@@ -204,6 +228,12 @@ export default function ConditieAssessment({ klas, students, initialScores }: Pr
 											placeholder="Bijv. 8.5"
 											className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-slate-800"
 										/>
+										{studentScores.shuttleRunLine && studentScores.shuttleRunTrap !== null && (
+											<p className="mt-1 text-xs text-slate-500">
+												Shuttle {shuttleGrade ?? "trap ongeldig"}
+												{shuttleGrade && ` · Niveau ${shuttleGrade === "O" ? 1 : shuttleGrade === "V" ? 2 : 3}`}
+											</p>
+										)}
 									</label>
 									<div>
 										<p className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500 lg:hidden">RSG Run · tijd</p>
