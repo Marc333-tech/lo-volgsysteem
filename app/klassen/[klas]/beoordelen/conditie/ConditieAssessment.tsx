@@ -244,7 +244,7 @@ export default function ConditieAssessment({ klas, students, initialScores }: Pr
 										<input
 											type="number"
 											min="1"
-											step="any"
+											step="0.5"
 											value={studentScores.shuttleRunTrap ?? ""}
 											onChange={(event) => updateScore(Number(student.id), {
 												shuttleRunTrap: getInputNumber(event.currentTarget.value),

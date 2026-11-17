@@ -34,7 +34,7 @@ export function parseShuttleRunTrap(value: unknown): number | null {
 	if (typeof value === "string" && value.trim() === "") return null;
 
 	const trap = Number(value);
-	return Number.isFinite(trap) && trap >= 1 ? trap : null;
+	return Number.isFinite(trap) && trap >= 1 && Number.isInteger(trap * 2) ? trap : null;
 }
 
 export function getShuttleRunGrade(
@@ -43,17 +43,17 @@ export function getShuttleRunGrade(
 ): ShuttleRunGrade | null {
 	if (line === null || trap === null || !Number.isFinite(trap) || trap < 1) return null;
 
+	if (!Number.isInteger(trap * 2)) return null;
+
 	if (line === "Geel") {
-		if (trap <= 5) return "O";
-		if (trap >= 6 && trap <= 7.5) return "V";
-		if (trap >= 8) return "G";
-		return null;
+		if (trap < 6) return "O";
+		if (trap < 8) return "V";
+		return "G";
 	}
 
-	if (trap <= 7) return "O";
-	if (trap >= 8 && trap <= 9.5) return "V";
-	if (trap >= 10) return "G";
-	return null;
+	if (trap < 7.5) return "O";
+	if (trap < 10) return "V";
+	return "G";
 }
 
 export function parseRsgRunTime(value: unknown): { minutes: number; seconds: number } | null {
@@ -84,7 +84,11 @@ export function isValidConditionInput(input: ConditionInputs): boolean {
 			|| input.shuttleRunLine === "Geel"
 			|| input.shuttleRunLine === "Blauw")
 		&& (input.shuttleRunTrap === null
-			|| (Number.isFinite(input.shuttleRunTrap) && input.shuttleRunTrap >= 1))
+			|| (
+				Number.isFinite(input.shuttleRunTrap)
+				&& input.shuttleRunTrap >= 1
+				&& Number.isInteger(input.shuttleRunTrap * 2)
+			))
 		&& (input.shuttleRunLine === null
 			|| input.shuttleRunTrap === null
 			|| getShuttleRunGrade(input.shuttleRunLine, input.shuttleRunTrap) !== null)

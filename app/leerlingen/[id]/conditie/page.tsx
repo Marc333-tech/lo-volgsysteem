@@ -263,7 +263,7 @@ export default function ConditiePage({
 							<input
 								type="number"
 								min="1"
-								step="any"
+								step="0.5"
 								value={score.shuttleRunTrap ?? ""}
 								onChange={(event) => updateScore({ shuttleRunTrap: getInputNumber(event.currentTarget.value) })}
 								placeholder="Bijv. 8.5"

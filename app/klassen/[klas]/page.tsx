@@ -58,6 +58,13 @@ type SpringenScore = {
 	combineren: number;
 };
 
+type AcrogymScore = {
+	student_id: number;
+	inzet: number;
+	techniek: number;
+	ontwerpen: number;
+};
+
 type AtletiekScore = {
 	student_id: number;
 	lay_out_kijkwijzer: number | null;
@@ -155,6 +162,7 @@ export default async function KlasPage({
 	const conditieScoresByStudent = new Map<number, ConditieScore>();
 	const ptaScoresByStudent = new Map<number, PTAScore>();
 	const springenScoresByStudent = new Map<number, SpringenScore>();
+	const acrogymScoresByStudent = new Map<number, AcrogymScore>();
 	const atletiekScoresByStudent = new Map<number, AtletiekScore>();
 
 	if (students && students.length > 0) {
@@ -309,6 +317,26 @@ export default async function KlasPage({
 					springenScoresByStudent.set(studentId, typedScore);
 				}
 			});
+
+			const { data: acrogymScores, error: acrogymScoresError } = await supabase
+				.from("acrogym_scores")
+				.select("student_id, inzet, techniek, ontwerpen")
+				.in("student_id", studentIds)
+				.order("created_at", { ascending: false });
+
+			if (acrogymScoresError) {
+				console.error("[KlasPage] acrogym_scores query failed:", acrogymScoresError);
+				throw new Error(`Acrogymbeoordelingen laden mislukt: ${acrogymScoresError.message}`);
+			}
+
+			acrogymScores?.forEach((score) => {
+				const typedScore = score as AcrogymScore;
+				const studentId = Number(typedScore.student_id);
+
+				if (!acrogymScoresByStudent.has(studentId)) {
+					acrogymScoresByStudent.set(studentId, typedScore);
+				}
+			});
 		}
 
 		if (isH3) {
@@ -393,6 +421,14 @@ export default async function KlasPage({
 									Beoordelingsmodus Klimmen <span aria-hidden="true">→</span>
 								</Link>
 							)}
+							{hasKlimmen && (
+								<Link
+									href={`/klassen/${klas}/beoordelen/acrogym`}
+									className="ml-3 mt-8 inline-flex items-center gap-2 rounded-lg bg-[#362665] px-5 py-3 font-semibold text-white shadow-lg shadow-[#362665]/15 transition-colors hover:bg-[#291c4d] focus:outline-none focus:ring-4 focus:ring-[#EF8A00]/40"
+								>
+									Beoordelingsmodus Acrogym <span aria-hidden="true">→</span>
+								</Link>
+							)}
 							<Link
 								href={`/klassen/${klas}/beoordelen/turnen-springen`}
 								className="ml-3 mt-8 inline-flex items-center gap-2 rounded-lg bg-[#362665] px-5 py-3 font-semibold text-white shadow-lg shadow-[#362665]/15 transition-colors hover:bg-[#291c4d] focus:outline-none focus:ring-4 focus:ring-[#EF8A00]/40"
@@ -436,6 +472,7 @@ export default async function KlasPage({
 							const atletiekScore = atletiekScoresByStudent.get(studentId);
 							const ptaScore = ptaScoresByStudent.get(studentId);
 							const springenScore = springenScoresByStudent.get(studentId);
+							const acrogymScore = acrogymScoresByStudent.get(studentId);
 							const softbalGrade = softbalScore
 								? getGrade([
 										softbalScore.tactiek_veldpartij,
@@ -469,13 +506,14 @@ export default async function KlasPage({
 								hockeyScore.spel,
 							])
 						: null;
-					const turnenSpringenGrade = springenScore
-						? getGrade([
-								springenScore.inzet,
-								springenScore.techniek,
-								springenScore.sprongvormen,
-								springenScore.combineren,
-							])
+					const acrogymAverage = acrogymScore
+						? (acrogymScore.inzet + acrogymScore.techniek + acrogymScore.ontwerpen) / 3
+						: null;
+					const turnenSpringenAverage = springenScore
+						? (springenScore.inzet + springenScore.techniek + springenScore.sprongvormen + springenScore.combineren) / 4
+						: null;
+					const lo2Grade = turnenSpringenAverage !== null && acrogymAverage !== null
+						? getGrade([(turnenSpringenAverage + acrogymAverage) / 2])
 						: null;
 							const atletiekValues = atletiekScore
 								? [
@@ -511,7 +549,7 @@ export default async function KlasPage({
 						...(isH3 ? [] : handbalGrade ? [handbalGrade] : []),
 						...(isH3 ? [] : hockeyGrade ? [hockeyGrade] : []),
 							]),
-								turnenSpringenGrade,
+								lo2Grade,
 								atletiekGrade,
 								klimmenScore
 									? getLoGrade([
